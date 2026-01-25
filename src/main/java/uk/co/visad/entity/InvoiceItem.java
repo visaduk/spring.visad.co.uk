@@ -34,10 +34,10 @@ public class InvoiceItem {
     private ItemType itemType = ItemType.main;
 
     @Column(name = "traveler_id")
-    private Long travelerId;
+    private Integer travelerId;
 
     @Column(name = "dependent_id")
-    private Long dependentId;
+    private Integer dependentId;
 
     @Column(nullable = false, length = 500)
     private String description;

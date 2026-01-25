@@ -116,12 +116,14 @@ public class TravelerQuestions {
     @Column(name = "hotel_contact_number", length = 50)
     private String hotelContactNumber;
 
+    @Transient
     @Column(name = "hotel_email", length = 255)
     private String hotelEmail;
 
     @Column(name = "hotel_booking_reference", length = 100)
     private String hotelBookingReference;
 
+    @Transient
     @Column(name = "hotel_website", length = 255)
     private String hotelWebsite;
 
