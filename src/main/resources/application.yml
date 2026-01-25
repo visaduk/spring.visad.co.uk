@@ -1,0 +1,124 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+  compression:
+    enabled: true
+    mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json
+    min-response-size: 1024
+
+spring:
+  application:
+    name: visad-api
+
+  # Database Configuration
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/visad_test?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&zeroDateTimeBehavior=CONVERT_TO_NULL}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:elnitish@11}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+
+  # JPA Configuration
+  jpa:
+    hibernate:
+      ddl-auto: update  # Use 'update' for development, 'validate' for production
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+        jdbc:
+          time_zone: UTC
+
+  # File Upload Configuration
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 15MB
+
+  # Mail Configuration
+  mail:
+    host: mail.visaway.co.uk
+    port: 465
+    username: info@visaway.co.uk
+    password: ${MAIL_PASSWORD:IDdc065sqJwNH}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          ssl:
+            enable: true
+          starttls:
+            enable: false
+        from: info@visaway.co.uk
+
+  # Jackson Configuration
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    date-format: dd/MM/yyyy
+    time-zone: Europe/London
+
+# Application-specific Configuration
+app:
+  jwt:
+    secret: ${JWT_SECRET:dmlzYWRqd3RzZWNyZXRrZXljaGFuZ2VpbnByb2R1Y3Rpb25taW5pbXVtMjU2Yml0c3JlcXVpcmVk}
+    expiration-ms: 86400000  # 24 hours
+  
+  upload:
+    base-dir: ${UPLOAD_DIR:./uploads/documents/client_documents}
+    documents-dir: ${UPLOAD_DIR:./uploads}/documents
+    forms-dir: ${UPLOAD_DIR:./uploads}/forms
+    allowed-extensions: pdf,doc,docx,jpg,jpeg,png,gif
+    max-file-size: 10485760  # 10MB in bytes
+
+  cors:
+    allowed-origins: http://localhost:3000,http://localhost:8080,https://vault.visaway.co.uk,http://localhost:8000,http://127.0.0.1:3000,http://127.0.0.1:8080,http://127.0.0.1:8000,http://192.168.1.14:8000,http://localhost:4545
+    allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+    allowed-headers: "*"
+    allow-credentials: true
+
+  base-url: https://vault.visad.co.uk
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    uk.co.visad: INFO
+    org.springframework.security: DEBUG
+    org.springframework.web: DEBUG
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+---
+# Development Profile
+spring:
+  config:
+    activate:
+      on-profile: dev
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+---
+# Production Profile
+spring:
+  config:
+    activate:
+      on-profile: prod
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+logging:
+  level:
+    root: WARN
+    uk.co.visad: INFO
