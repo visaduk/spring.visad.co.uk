@@ -20,9 +20,19 @@ public class DocumentController {
 
     @GetMapping("/get_documents")
     public ResponseEntity<ApiResponse<List<Document>>> getDocuments(
-            @RequestParam("record_id") Long recordId,
-            @RequestParam("record_type") String recordType) {
-        List<Document> documents = documentService.getDocuments(recordId, recordType);
+            @RequestParam(value = "record_id", required = false) Long recordId,
+            @RequestParam(value = "id", required = false) Long id,
+            @RequestParam(value = "record_type", required = false) String recordType,
+            @RequestParam(value = "type", required = false) String type) {
+        
+        Long finalId = (recordId != null) ? recordId : id;
+        String finalType = (recordType != null) ? recordType : type;
+
+        if (finalId == null || finalType == null) {
+             return ResponseEntity.badRequest().body(ApiResponse.error("Missing id or type"));
+        }
+
+        List<Document> documents = documentService.getDocuments(finalId, finalType);
         return ResponseEntity.ok(ApiResponse.success(documents));
     }
 
