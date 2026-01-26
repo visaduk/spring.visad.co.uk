@@ -160,6 +160,41 @@ public class TravelerDto {
     private String hotelBookingReference;
     private String hotelWebsite;
 
+    private String stayType;
+
+    // Business Visit - Inviting Company
+    private String invitingCompanyName;
+    private String invitingCompanyContactPerson;
+    private String invitingCompanyPhone;
+
+    @JsonProperty("inviting_company_address_1")
+    private String invitingCompanyAddress1;
+
+    @JsonProperty("inviting_company_address_2")
+    private String invitingCompanyAddress2;
+
+    private String invitingCompanyCity;
+    private String invitingCompanyState;
+    private String invitingCompanyZip;
+
+    // Family/Friends Visit - Inviting Person
+    private String invitingPersonFirstName;
+    private String invitingPersonSurname;
+    private String invitingPersonEmail;
+    private String invitingPersonPhone;
+    private String invitingPersonPhoneCode;
+    private String invitingPersonRelationship;
+
+    @JsonProperty("inviting_person_address_1")
+    private String invitingPersonAddress1;
+
+    @JsonProperty("inviting_person_address_2")
+    private String invitingPersonAddress2;
+
+    private String invitingPersonCity;
+    private String invitingPersonState;
+    private String invitingPersonZip;
+
     // Bookings & Docs
     private String hasBookings;
 
@@ -172,6 +207,8 @@ public class TravelerDto {
     private String evisaNoDateSettled;
     private String evisaDocument;
     private List<String> evisaDocumentLinks;
+
+    private String schengenVisaImage;
 
     private String shareCode;
 

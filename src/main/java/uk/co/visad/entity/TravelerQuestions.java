@@ -144,6 +144,69 @@ public class TravelerQuestions {
     @Builder.Default
     private Boolean formComplete = false;
 
+    // Accommodation - Additional Fields for Business/Family
+    @Column(name = "stay_type", length = 50)
+    private String stayType;
+
+    // Business Visit - Inviting Company
+    @Column(name = "inviting_company_name", length = 255)
+    private String invitingCompanyName;
+
+    @Column(name = "inviting_company_contact_person", length = 255)
+    private String invitingCompanyContactPerson;
+
+    @Column(name = "inviting_company_phone", length = 50)
+    private String invitingCompanyPhone;
+
+    @Column(name = "inviting_company_address_1", length = 255)
+    private String invitingCompanyAddress1;
+
+    @Column(name = "inviting_company_address_2", length = 255)
+    private String invitingCompanyAddress2;
+
+    @Column(name = "inviting_company_city", length = 100)
+    private String invitingCompanyCity;
+
+    @Column(name = "inviting_company_state", length = 100)
+    private String invitingCompanyState;
+
+    @Column(name = "inviting_company_zip", length = 20)
+    private String invitingCompanyZip;
+
+    // Family/Friends Visit - Inviting Person
+    @Column(name = "inviting_person_first_name", length = 255)
+    private String invitingPersonFirstName;
+
+    @Column(name = "inviting_person_surname", length = 255)
+    private String invitingPersonSurname;
+
+    @Column(name = "inviting_person_email", length = 255)
+    private String invitingPersonEmail;
+
+    @Column(name = "inviting_person_phone", length = 50)
+    private String invitingPersonPhone;
+
+    @Column(name = "inviting_person_phone_code", length = 20)
+    private String invitingPersonPhoneCode;
+
+    @Column(name = "inviting_person_relationship", length = 100)
+    private String invitingPersonRelationship;
+
+    @Column(name = "inviting_person_address_1", length = 255)
+    private String invitingPersonAddress1;
+
+    @Column(name = "inviting_person_address_2", length = 255)
+    private String invitingPersonAddress2;
+
+    @Column(name = "inviting_person_city", length = 100)
+    private String invitingPersonCity;
+
+    @Column(name = "inviting_person_state", length = 100)
+    private String invitingPersonState;
+
+    @Column(name = "inviting_person_zip", length = 20)
+    private String invitingPersonZip;
+
     // eVisa fields
     @Column(name = "evisa_issue_date")
     private LocalDate evisaIssueDate;
@@ -177,6 +240,9 @@ public class TravelerQuestions {
 
     @Column(name = "additional_notes", columnDefinition = "TEXT")
     private String additionalNotes;
+
+    @Column(name = "schengen_visa_image", length = 255)
+    private String schengenVisaImage;
 
     // Timestamps
     @org.springframework.data.annotation.CreatedDate

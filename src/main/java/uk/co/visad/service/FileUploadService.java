@@ -57,7 +57,8 @@ public class FileUploadService {
             "share_code_document_path", "shareCodeDocument",
             "booking_documents_path", "bookingDocument",
             "passport_front", "passportFront",
-            "passport_back", "passportBack");
+            "passport_back", "passportBack",
+            "schengen_visa_image", "schengenVisaImage");
 
     public FileUploadResponse uploadFiles(String token, String dbField, MultipartFile[] files) {
         log.info("Uploading {} files for field: {}", files.length, dbField);
@@ -153,18 +154,40 @@ public class FileUploadService {
         findRecordByToken(token); // Throws UnauthorizedException if invalid
 
         try {
-            Path filePath = Paths.get(uploadBasePath).resolve(filename).normalize();
+            Path basePath = Paths.get(uploadBasePath).normalize();
+            Path filePath = basePath.resolve(filename).normalize();
             Resource resource = new UrlResource(filePath.toUri());
 
             if (resource.exists() && resource.isReadable()) {
                 // Security check: ensure file is inside upload base directory
-                if (!filePath.startsWith(Paths.get(uploadBasePath).normalize())) {
-                    throw new UnauthorizedException("Invalid file path");
+                if (!filePath.startsWith(basePath)) {
+                     throw new UnauthorizedException("Invalid file path");
                 }
                 return resource;
-            } else {
-                throw new ResourceNotFoundException("File not found: " + filename);
+            } 
+            
+            // Fallback: Check in sibling directories for legacy files (bookings, evisa, etc.)
+            // Assuming base-dir is .../client_documents, parent is .../documents
+            Path parentPath = basePath.getParent();
+            if (parentPath != null) {
+                String[] legacyFolders = {"bookings", "evisa", "share_code", "flight", "hotel", "insurance", "application", "appointment", "forms"};
+                
+                for (String folder : legacyFolders) {
+                    Path legacyPath = parentPath.resolve(folder).resolve(filename).normalize();
+                    Resource legacyResource = new UrlResource(legacyPath.toUri());
+                    
+                    if (legacyResource.exists() && legacyResource.isReadable()) {
+                        // Security check: ensure file is inside the parent documents directory
+                        if (!legacyPath.startsWith(parentPath)) {
+                            continue;
+                        }
+                        log.info("Found legacy file in sibling folder: {}/{}", folder, filename);
+                        return legacyResource;
+                    }
+                }
             }
+            
+            throw new ResourceNotFoundException("File not found: " + filename);
         } catch (MalformedURLException e) {
             throw new ResourceNotFoundException("File not found: " + filename);
         }

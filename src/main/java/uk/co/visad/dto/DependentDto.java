@@ -162,6 +162,8 @@ public class DependentDto {
 
     private String evisaNoDateSettled;
     private String evisaDocument;
+    
+    private String schengenVisaImage;
 
     private String shareCode;
 

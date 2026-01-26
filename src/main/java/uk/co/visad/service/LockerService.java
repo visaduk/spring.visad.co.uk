@@ -325,6 +325,26 @@ public class LockerService {
                 .hotelEmail(questions.getHotelEmail())
                 .hotelBookingReference(questions.getHotelBookingReference())
                 .hotelWebsite(questions.getHotelWebsite())
+                .stayType(questions.getStayType())
+                .invitingCompanyName(questions.getInvitingCompanyName())
+                .invitingCompanyContactPerson(questions.getInvitingCompanyContactPerson())
+                .invitingCompanyPhone(questions.getInvitingCompanyPhone())
+                .invitingCompanyAddress1(questions.getInvitingCompanyAddress1())
+                .invitingCompanyAddress2(questions.getInvitingCompanyAddress2())
+                .invitingCompanyCity(questions.getInvitingCompanyCity())
+                .invitingCompanyState(questions.getInvitingCompanyState())
+                .invitingCompanyZip(questions.getInvitingCompanyZip())
+                .invitingPersonFirstName(questions.getInvitingPersonFirstName())
+                .invitingPersonSurname(questions.getInvitingPersonSurname())
+                .invitingPersonEmail(questions.getInvitingPersonEmail())
+                .invitingPersonPhone(questions.getInvitingPersonPhone())
+                .invitingPersonPhoneCode(questions.getInvitingPersonPhoneCode())
+                .invitingPersonRelationship(questions.getInvitingPersonRelationship())
+                .invitingPersonAddress1(questions.getInvitingPersonAddress1())
+                .invitingPersonAddress2(questions.getInvitingPersonAddress2())
+                .invitingPersonCity(questions.getInvitingPersonCity())
+                .invitingPersonState(questions.getInvitingPersonState())
+                .invitingPersonZip(questions.getInvitingPersonZip())
                 .evisaIssueDate(questions.getEvisaIssueDate() != null ? questions.getEvisaIssueDate().toString() : null)
                 .evisaExpiryDate(
                         questions.getEvisaExpiryDate() != null ? questions.getEvisaExpiryDate().toString() : null)
@@ -507,34 +527,65 @@ public class LockerService {
                 break;
 
             // Map 'inviting_' prefixed fields to company fields
+            case "stay_type":
+                questions.setStayType(strValue);
+                break;
             case "inviting_company_name":
-                questions.setCompanyName(strValue);
+                questions.setInvitingCompanyName(strValue);
                 break;
             case "inviting_company_address_1":
-                questions.setCompanyAddress1(strValue);
+                questions.setInvitingCompanyAddress1(strValue);
                 break;
             case "inviting_company_address_2":
-                questions.setCompanyAddress2(strValue);
+                questions.setInvitingCompanyAddress2(strValue);
                 break;
             case "inviting_company_city":
-                questions.setCompanyCity(strValue);
+                questions.setInvitingCompanyCity(strValue);
                 break;
             case "inviting_company_state":
-                questions.setCompanyState(strValue);
+                questions.setInvitingCompanyState(strValue);
                 break;
             case "inviting_company_zip":
-                questions.setCompanyZip(strValue);
+                questions.setInvitingCompanyZip(strValue);
                 break;
             case "inviting_company_phone":
-                questions.setCompanyPhone(strValue);
+                questions.setInvitingCompanyPhone(strValue);
                 break;
-            case "inviting_company_email":
-            case "inviting_company_contact_person": // No specific field for contact person, maybe map to email or
-                                                    // ignore?
-                // Assuming contact person isn't in DB yet, skipping or could misuse another
-                // field.
-                // Let's assume company_email for email.
-                questions.setCompanyEmail(strValue);
+            case "inviting_company_contact_person":
+                questions.setInvitingCompanyContactPerson(strValue);
+                break;
+            case "inviting_person_first_name":
+                questions.setInvitingPersonFirstName(strValue);
+                break;
+            case "inviting_person_surname":
+                questions.setInvitingPersonSurname(strValue);
+                break;
+            case "inviting_person_email":
+                questions.setInvitingPersonEmail(strValue);
+                break;
+            case "inviting_person_phone":
+                questions.setInvitingPersonPhone(strValue);
+                break;
+            case "inviting_person_phone_code":
+                questions.setInvitingPersonPhoneCode(strValue);
+                break;
+            case "inviting_person_relationship":
+                questions.setInvitingPersonRelationship(strValue);
+                break;
+            case "inviting_person_address_1":
+                questions.setInvitingPersonAddress1(strValue);
+                break;
+            case "inviting_person_address_2":
+                questions.setInvitingPersonAddress2(strValue);
+                break;
+            case "inviting_person_city":
+                questions.setInvitingPersonCity(strValue);
+                break;
+            case "inviting_person_state":
+                questions.setInvitingPersonState(strValue);
+                break;
+            case "inviting_person_zip":
+                questions.setInvitingPersonZip(strValue);
                 break;
             case "has_credit_card":
                 questions.setHasCreditCard(strValue);

@@ -75,11 +75,21 @@ public class TravelerService {
             // Accommodation
             "hasStayBooking", "hotelName", "hotelAddress1", "hotelAddress2",
             "hotelCity", "hotelState", "hotelZip", "hotelContactNumber", "hotelEmail",
-            "hotelBookingReference", "hotelWebsite",
+            "hotelBookingReference", "hotelWebsite", "stayType",
+            // Business
+            "invitingCompanyName", "invitingCompanyContactPerson", "invitingCompanyPhone",
+            "invitingCompanyAddress1", "invitingCompanyAddress2", "invitingCompanyCity",
+            "invitingCompanyState", "invitingCompanyZip",
+            // Family/Friends
+            "invitingPersonFirstName", "invitingPersonSurname", "invitingPersonEmail",
+            "invitingPersonPhone", "invitingPersonPhoneCode", "invitingPersonRelationship",
+            "invitingPersonAddress1", "invitingPersonAddress2", "invitingPersonCity",
+            "invitingPersonState", "invitingPersonZip",
             // Bookings
             "hasBookings",
             // eVisa
             "evisaIssueDate", "evisaExpiryDate", "evisaNoDateSettled", "evisaDocument",
+            "schengenVisaImage",
             // Share Code
             "shareCode", "shareCodeExpiryDate", "shareCodeDocument",
             // Documents
@@ -591,11 +601,32 @@ public class TravelerService {
         String hotelEmail = null;
         String hotelBookingReference = null;
         String hotelWebsite = null;
+        String stayType = null;
+        String invitingCompanyName = null;
+        String invitingCompanyContactPerson = null;
+        String invitingCompanyPhone = null;
+        String invitingCompanyAddress1 = null;
+        String invitingCompanyAddress2 = null;
+        String invitingCompanyCity = null;
+        String invitingCompanyState = null;
+        String invitingCompanyZip = null;
+        String invitingPersonFirstName = null;
+        String invitingPersonSurname = null;
+        String invitingPersonEmail = null;
+        String invitingPersonPhone = null;
+        String invitingPersonPhoneCode = null;
+        String invitingPersonRelationship = null;
+        String invitingPersonAddress1 = null;
+        String invitingPersonAddress2 = null;
+        String invitingPersonCity = null;
+        String invitingPersonState = null;
+        String invitingPersonZip = null;
         String hasBookings = null;
         LocalDate evisaIssueDate = null;
         LocalDate evisaExpiryDate = null;
         String evisaNoDateSettled = null;
         String evisaDocument = null;
+        String schengenVisaImage = null;
         String shareCode = null;
         LocalDate shareCodeExpiryDate = null;
         String shareCodeDocument = null;
@@ -636,11 +667,32 @@ public class TravelerService {
             hotelEmail = questions.getHotelEmail();
             hotelBookingReference = questions.getHotelBookingReference();
             hotelWebsite = questions.getHotelWebsite();
+            stayType = questions.getStayType();
+            invitingCompanyName = questions.getInvitingCompanyName();
+            invitingCompanyContactPerson = questions.getInvitingCompanyContactPerson();
+            invitingCompanyPhone = questions.getInvitingCompanyPhone();
+            invitingCompanyAddress1 = questions.getInvitingCompanyAddress1();
+            invitingCompanyAddress2 = questions.getInvitingCompanyAddress2();
+            invitingCompanyCity = questions.getInvitingCompanyCity();
+            invitingCompanyState = questions.getInvitingCompanyState();
+            invitingCompanyZip = questions.getInvitingCompanyZip();
+            invitingPersonFirstName = questions.getInvitingPersonFirstName();
+            invitingPersonSurname = questions.getInvitingPersonSurname();
+            invitingPersonEmail = questions.getInvitingPersonEmail();
+            invitingPersonPhone = questions.getInvitingPersonPhone();
+            invitingPersonPhoneCode = questions.getInvitingPersonPhoneCode();
+            invitingPersonRelationship = questions.getInvitingPersonRelationship();
+            invitingPersonAddress1 = questions.getInvitingPersonAddress1();
+            invitingPersonAddress2 = questions.getInvitingPersonAddress2();
+            invitingPersonCity = questions.getInvitingPersonCity();
+            invitingPersonState = questions.getInvitingPersonState();
+            invitingPersonZip = questions.getInvitingPersonZip();
             hasBookings = questions.getHasBookings();
             evisaIssueDate = questions.getEvisaIssueDate();
             evisaExpiryDate = questions.getEvisaExpiryDate();
             evisaNoDateSettled = questions.getEvisaNoDateSettled();
             evisaDocument = questions.getEvisaDocument();
+            schengenVisaImage = questions.getSchengenVisaImage();
             shareCode = questions.getShareCode();
             shareCodeExpiryDate = questions.getShareCodeExpiryDate();
             shareCodeDocument = questions.getShareCodeDocument();
@@ -694,9 +746,22 @@ public class TravelerService {
                 .hasCreditCard(hasCreditCard).travelCoveredBy(travelCoveredBy).hasStayBooking(hasStayBooking)
                 .hotelName(hotelName).hotelAddress1(hotelAddress1).hotelAddress2(hotelAddress2).hotelCity(hotelCity)
                 .hotelState(hotelState).hotelZip(hotelZip).hotelContactNumber(hotelContactNumber).hotelEmail(hotelEmail)
-                .hotelBookingReference(hotelBookingReference).hotelWebsite(hotelWebsite).hasBookings(hasBookings)
+                .hotelBookingReference(hotelBookingReference).hotelWebsite(hotelWebsite)
+                .stayType(stayType).invitingCompanyName(invitingCompanyName)
+                .invitingCompanyContactPerson(invitingCompanyContactPerson).invitingCompanyPhone(invitingCompanyPhone)
+                .invitingCompanyAddress1(invitingCompanyAddress1).invitingCompanyAddress2(invitingCompanyAddress2)
+                .invitingCompanyCity(invitingCompanyCity).invitingCompanyState(invitingCompanyState)
+                .invitingCompanyZip(invitingCompanyZip)
+                .invitingPersonFirstName(invitingPersonFirstName).invitingPersonSurname(invitingPersonSurname)
+                .invitingPersonEmail(invitingPersonEmail).invitingPersonPhone(invitingPersonPhone)
+                .invitingPersonPhoneCode(invitingPersonPhoneCode).invitingPersonRelationship(invitingPersonRelationship)
+                .invitingPersonAddress1(invitingPersonAddress1).invitingPersonAddress2(invitingPersonAddress2)
+                .invitingPersonCity(invitingPersonCity).invitingPersonState(invitingPersonState)
+                .invitingPersonZip(invitingPersonZip)
+                .hasBookings(hasBookings)
                 .evisaIssueDate(evisaIssueDate).evisaExpiryDate(evisaExpiryDate).evisaNoDateSettled(evisaNoDateSettled)
-                .evisaDocument(evisaDocument).evisaDocumentLinks(evisaLinks).shareCode(shareCode)
+                .evisaDocument(evisaDocument).schengenVisaImage(schengenVisaImage).evisaDocumentLinks(evisaLinks).shareCode(shareCode)
+                .shareCodeExpiryDate(shareCodeExpiryDate).shareCodeDocument(shareCodeDocument)
                 .shareCodeExpiryDate(shareCodeExpiryDate).shareCodeDocument(shareCodeDocument)
                 .shareCodeDocumentLinks(shareCodeLinks).bookingDocument(bookingDocument)
                 .bookingDocumentLinks(bookingLinks).passportFront(passportFront).passportFrontLinks(passportFrontLinks)
@@ -763,6 +828,9 @@ public class TravelerService {
                 .appointmentRemarks(d.getAppointmentRemarks())
                 .username(d.getUsername())
                 .logins(d.getLogins())
+                .logins(d.getLogins())
+                .schengenVisaImage(d.getTravelerQuestions() != null && !d.getTravelerQuestions().isEmpty() ? d.getTravelerQuestions().get(0).getSchengenVisaImage() : null)
+                .publicUrlToken(d.getPublicUrlToken())
                 .publicUrlToken(d.getPublicUrlToken())
                 .price(d.getPrice())
                 .createdByUsername(d.getCreatedByUsername())

@@ -221,6 +221,68 @@ public class LockerDtos {
         @JsonProperty("hotel_website")
         private String hotelWebsite;
 
+        @JsonProperty("stay_type")
+        private String stayType;
+
+        // Business
+        @JsonProperty("inviting_company_name")
+        private String invitingCompanyName;
+
+        @JsonProperty("inviting_company_contact_person")
+        private String invitingCompanyContactPerson;
+
+        @JsonProperty("inviting_company_phone")
+        private String invitingCompanyPhone;
+
+        @JsonProperty("inviting_company_address_1")
+        private String invitingCompanyAddress1;
+
+        @JsonProperty("inviting_company_address_2")
+        private String invitingCompanyAddress2;
+
+        @JsonProperty("inviting_company_city")
+        private String invitingCompanyCity;
+
+        @JsonProperty("inviting_company_state")
+        private String invitingCompanyState;
+
+        @JsonProperty("inviting_company_zip")
+        private String invitingCompanyZip;
+
+        // Family/Friends
+        @JsonProperty("inviting_person_first_name")
+        private String invitingPersonFirstName;
+
+        @JsonProperty("inviting_person_surname")
+        private String invitingPersonSurname;
+
+        @JsonProperty("inviting_person_email")
+        private String invitingPersonEmail;
+
+        @JsonProperty("inviting_person_phone")
+        private String invitingPersonPhone;
+
+        @JsonProperty("inviting_person_phone_code")
+        private String invitingPersonPhoneCode;
+
+        @JsonProperty("inviting_person_relationship")
+        private String invitingPersonRelationship;
+
+        @JsonProperty("inviting_person_address_1")
+        private String invitingPersonAddress1;
+
+        @JsonProperty("inviting_person_address_2")
+        private String invitingPersonAddress2;
+
+        @JsonProperty("inviting_person_city")
+        private String invitingPersonCity;
+
+        @JsonProperty("inviting_person_state")
+        private String invitingPersonState;
+
+        @JsonProperty("inviting_person_zip")
+        private String invitingPersonZip;
+
         @JsonProperty("evisa_issue_date")
         private String evisaIssueDate;
 
