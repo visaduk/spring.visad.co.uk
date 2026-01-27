@@ -45,7 +45,7 @@ spring:
   mail:
     host: mail.visad.co.uk
     port: 465
-    username: mail@visad.co.uk
+    username: info@visad.co.uk
     password: Wearestarshere*
     properties:
       mail:
@@ -55,7 +55,7 @@ spring:
             enable: true
           starttls:
             enable: false
-        from: mail@visad.co.uk
+        from: info@visad.co.uk
 
   # Jackson Configuration
   jackson:
