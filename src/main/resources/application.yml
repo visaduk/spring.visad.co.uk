@@ -43,10 +43,10 @@ spring:
 
   # Mail Configuration
   mail:
-    host: mail.visaway.co.uk
+    host: mail.visad.co.uk
     port: 465
-    username: info@visaway.co.uk
-    password: ${MAIL_PASSWORD:IDdc065sqJwNH}
+    username: mail@visad.co.uk
+    password: ${MAIL_PASSWORD} # Should remain as env var, or user enters manually.
     properties:
       mail:
         smtp:
@@ -55,7 +55,7 @@ spring:
             enable: true
           starttls:
             enable: false
-        from: info@visaway.co.uk
+        from: mail@visad.co.uk
 
   # Jackson Configuration
   jackson:

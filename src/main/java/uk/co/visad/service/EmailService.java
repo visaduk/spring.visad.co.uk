@@ -28,7 +28,7 @@ public class EmailService {
             String[] to = request.getEmails().toArray(new String[0]);
             helper.setTo(to);
             helper.setSubject(request.getSubject() != null ? request.getSubject() : "Invoice from VisaD");
-            helper.setFrom("info@visaway.co.uk"); // Should match config
+            helper.setFrom("mail@visad.co.uk"); // Should match config
 
             if (request.getBcc() != null && !request.getBcc().isEmpty()) {
                 helper.setBcc(request.getBcc());
