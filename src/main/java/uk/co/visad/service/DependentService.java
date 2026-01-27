@@ -223,14 +223,26 @@ public class DependentService {
         Dependent dependent = dependentRepository.findByIdWithAllRelations(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Dependent not found"));
 
-        return mapToDto(dependent);
+        TravelerQuestions questions = travelerQuestionsRepository
+                .findByRecordIdAndRecordType(id, "dependent")
+                .orElse(null);
+
+        return mapToDto(dependent, questions);
     }
 
     @Transactional(readOnly = true)
     public List<DependentDto> getDependentsForTraveler(Long travelerId) {
         List<Dependent> dependents = dependentRepository.findByTraveler_Id(travelerId);
+        
+        // Batch fetch questions to avoid N+1
+        List<Long> depIds = dependents.stream().map(Dependent::getId).collect(Collectors.toList());
+        Map<Long, TravelerQuestions> questionsMap = travelerQuestionsRepository
+                .findAllByRecordIdInAndRecordType(depIds, "dependent")
+                .stream()
+                .collect(Collectors.toMap(TravelerQuestions::getRecordId, tq -> tq));
+
         return dependents.stream()
-                .map(this::mapToDto)
+                .map(d -> mapToDto(d, questionsMap.get(d.getId())))
                 .collect(Collectors.toList());
     }
 
@@ -309,7 +321,7 @@ public class DependentService {
         travelerQuestionsRepository.save(tq);
     }
 
-    private DependentDto mapToDto(Dependent d) {
+    private DependentDto mapToDto(Dependent d, TravelerQuestions questions) {
         DateTimeFormatter displayFormat = DateTimeFormatter.ofPattern("dd/MM/yy HH:mm");
 
         Integer progress = null;
@@ -356,8 +368,7 @@ public class DependentService {
         Boolean agreedToTerms = null;
         Boolean formComplete = null;
 
-        if (d.getTravelerQuestions() != null && !d.getTravelerQuestions().isEmpty()) {
-            TravelerQuestions questions = d.getTravelerQuestions().get(0);
+        if (questions != null) {
             progress = questions.getProgressPercentage();
             travelDateFromQuestions = questions.getTravelDateFrom();
             occupationStatus = questions.getOccupationStatus();

@@ -156,10 +156,7 @@ public class Traveler {
     @Builder.Default
     private List<Dependent> dependents = new ArrayList<>();
 
-    @OneToMany(mappedBy = "traveler", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @org.hibernate.annotations.Where(clause = "record_type = 'traveler'")
-    @Builder.Default
-    private List<TravelerQuestions> travelerQuestions = new ArrayList<>();
+
 
     // Fields mapped to DB columns
     @Column(length = 100)

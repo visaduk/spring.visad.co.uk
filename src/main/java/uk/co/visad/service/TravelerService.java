@@ -171,12 +171,29 @@ public class TravelerService {
             }
         }
 
-        // 3. Map to DTO
+        // 3. Batch fetch Dependent Questions (Optimization)
+        Map<Long, TravelerQuestions> dependentQuestionsMap = new HashMap<>();
+        if (!dependentsMap.isEmpty()) {
+             List<Long> allDependentIds = dependentsMap.values().stream()
+                     .flatMap(List::stream)
+                     .map(Dependent::getId)
+                     .collect(Collectors.toList());
+             
+             if (!allDependentIds.isEmpty()) {
+                 dependentQuestionsMap = travelerQuestionsRepository
+                         .findAllByRecordIdInAndRecordType(allDependentIds, "dependent")
+                         .stream()
+                         .collect(Collectors.toMap(TravelerQuestions::getRecordId, tq -> tq));
+             }
+        }
+
+        // 4. Map to DTO
         final Map<Long, List<Dependent>> finalDependentsMap = dependentsMap;
         final Map<Long, TravelerQuestions> finalQuestionsMap = questionsMap;
+        final Map<Long, TravelerQuestions> finalDependentQuestionsMap = dependentQuestionsMap;
 
-        List<TravelerDto> dtos = travelerPage.getContent().parallelStream()
-                .map(t -> mapToDtoOptimized(t, finalDependentsMap.get(t.getId()), finalQuestionsMap.get(t.getId())))
+        List<TravelerDto> dtos = travelerPage.getContent().stream()
+                .map(t -> mapToDtoOptimized(t, finalDependentsMap.get(t.getId()), finalQuestionsMap.get(t.getId()), finalDependentQuestionsMap))
                 .collect(Collectors.toList());
 
         ApiResponse.PaginationInfo pagination = ApiResponse.PaginationInfo.builder()
@@ -228,8 +245,12 @@ public class TravelerService {
     public TravelerDto getTravelerById(Long id) {
         Traveler traveler = travelerRepository.findByIdWithDependents(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Traveler not found"));
+        
+        TravelerQuestions questions = travelerQuestionsRepository
+                .findByRecordIdAndRecordType(id, "traveler")
+                .orElse(null);
 
-        return mapToDto(traveler, traveler.getDependents());
+        return mapToDto(traveler, traveler.getDependents(), questions);
     }
 
     @Transactional
@@ -373,7 +394,11 @@ public class TravelerService {
         // Search in travelers
         Optional<Traveler> traveler = travelerRepository.findByPassportNo(passportNo);
         if (traveler.isPresent()) {
-            return mapToDto(traveler.get(), null);
+            Traveler t = traveler.get();
+            TravelerQuestions questions = travelerQuestionsRepository
+                    .findByRecordIdAndRecordType(t.getId(), "traveler")
+                    .orElse(null);
+            return mapToDto(t, null, questions);
         }
 
         // Search in dependents
@@ -534,18 +559,23 @@ public class TravelerService {
         travelerQuestionsRepository.save(tq);
     }
 
-    private TravelerDto mapToDto(Traveler t, List<Dependent> dependents) {
-        // Fallback to optimized version with null questions map lookup
-        // Use standard getter for questions which might trigger lazy load if not
-        // optimized
-        TravelerQuestions tq = null;
-        if (t.getTravelerQuestions() != null && !t.getTravelerQuestions().isEmpty()) {
-            tq = t.getTravelerQuestions().get(0);
+    private TravelerDto mapToDto(Traveler t, List<Dependent> dependents, TravelerQuestions questions) {
+        // For single traveler fetch, we can lazy load dependent questions or fetch them if needed.
+        // But mapToDtoOptimized now expects a Map.
+        Map<Long, TravelerQuestions> depQuestionsMap = new HashMap<>();
+        if (dependents != null && !dependents.isEmpty()) {
+            List<Long> depIds = dependents.stream().map(Dependent::getId).collect(Collectors.toList());
+            if (!depIds.isEmpty()) {
+                depQuestionsMap = travelerQuestionsRepository
+                        .findAllByRecordIdInAndRecordType(depIds, "dependent")
+                        .stream()
+                        .collect(Collectors.toMap(TravelerQuestions::getRecordId, q -> q));
+            }
         }
-        return mapToDtoOptimized(t, dependents, tq);
+        return mapToDtoOptimized(t, dependents, questions, depQuestionsMap);
     }
 
-    private TravelerDto mapToDtoOptimized(Traveler t, List<Dependent> dependents, TravelerQuestions questions) {
+    private TravelerDto mapToDtoOptimized(Traveler t, List<Dependent> dependents, TravelerQuestions questions, Map<Long, TravelerQuestions> dependentQuestionsMap) {
         DateTimeFormatter displayFormat = DateTimeFormatter.ofPattern("dd/MM/yy HH:mm");
 
         TravelerDto.InvoiceDto savedInvoice = null;
@@ -567,7 +597,7 @@ public class TravelerService {
         List<DependentDto> depDtos = null;
         if (dependents != null) {
             depDtos = dependents.stream()
-                    .map(this::mapDependentToDto)
+                    .map(d -> mapDependentToDto(d, dependentQuestionsMap != null ? dependentQuestionsMap.get(d.getId()) : null))
                     .collect(Collectors.toList());
         }
 
@@ -654,6 +684,7 @@ public class TravelerService {
             travelDateTo = questions.getTravelDateTo();
             primaryDestination = questions.getPrimaryDestination();
             fingerprintsTaken = questions.getFingerprintsTaken();
+            schengenVisaImage = questions.getSchengenVisaImage();
             hasCreditCard = questions.getHasCreditCard();
             travelCoveredBy = questions.getTravelCoveredBy();
             hasStayBooking = questions.getHasStayBooking();
@@ -692,7 +723,6 @@ public class TravelerService {
             evisaExpiryDate = questions.getEvisaExpiryDate();
             evisaNoDateSettled = questions.getEvisaNoDateSettled();
             evisaDocument = questions.getEvisaDocument();
-            schengenVisaImage = questions.getSchengenVisaImage();
             shareCode = questions.getShareCode();
             shareCodeExpiryDate = questions.getShareCodeExpiryDate();
             shareCodeDocument = questions.getShareCodeDocument();
@@ -780,7 +810,7 @@ public class TravelerService {
                 .createdAt(t.getCreatedAt()).lastUpdatedAt(t.getLastUpdatedAt()).dependents(depDtos).build();
     }
 
-    private DependentDto mapDependentToDto(Dependent d) {
+    private DependentDto mapDependentToDto(Dependent d, TravelerQuestions questions) {
         DateTimeFormatter displayFormat = DateTimeFormatter.ofPattern("dd/MM/yy HH:mm");
 
         return DependentDto.builder()
@@ -829,8 +859,7 @@ public class TravelerService {
                 .username(d.getUsername())
                 .logins(d.getLogins())
                 .logins(d.getLogins())
-                .schengenVisaImage(d.getTravelerQuestions() != null && !d.getTravelerQuestions().isEmpty() ? d.getTravelerQuestions().get(0).getSchengenVisaImage() : null)
-                .publicUrlToken(d.getPublicUrlToken())
+                .schengenVisaImage(questions != null ? questions.getSchengenVisaImage() : null)
                 .publicUrlToken(d.getPublicUrlToken())
                 .price(d.getPrice())
                 .createdByUsername(d.getCreatedByUsername())

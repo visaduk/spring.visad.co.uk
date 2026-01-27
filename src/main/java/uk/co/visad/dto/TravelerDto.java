@@ -206,9 +206,8 @@ public class TravelerDto {
 
     private String evisaNoDateSettled;
     private String evisaDocument;
-    private List<String> evisaDocumentLinks;
-
     private String schengenVisaImage;
+    private List<String> evisaDocumentLinks;
 
     private String shareCode;
 

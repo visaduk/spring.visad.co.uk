@@ -24,7 +24,7 @@ public interface TravelerRepository extends JpaRepository<Traveler, Long> {
        List<Traveler> findByEmail(String email);
 
        // Paginated query with traveler questions joined
-       @Query("SELECT t FROM Traveler t LEFT JOIN FETCH t.travelerQuestions ORDER BY t.id DESC")
+       @Query("SELECT t FROM Traveler t ORDER BY t.id DESC")
        Page<Traveler> findAllWithQuestions(Pageable pageable);
 
        // Find traveler with dependents
@@ -34,7 +34,6 @@ public interface TravelerRepository extends JpaRepository<Traveler, Long> {
        // Find traveler with all relations
        @Query("SELECT t FROM Traveler t " +
                      "LEFT JOIN FETCH t.dependents " +
-                     "LEFT JOIN FETCH t.travelerQuestions " +
                      "WHERE t.id = :id")
        Optional<Traveler> findByIdWithAllRelations(@Param("id") Long id);
 

@@ -57,8 +57,7 @@ public class FileUploadService {
             "share_code_document_path", "shareCodeDocument",
             "booking_documents_path", "bookingDocument",
             "passport_front", "passportFront",
-            "passport_back", "passportBack",
-            "schengen_visa_image", "schengenVisaImage");
+            "passport_back", "passportBack");
 
     public FileUploadResponse uploadFiles(String token, String dbField, MultipartFile[] files) {
         log.info("Uploading {} files for field: {}", files.length, dbField);

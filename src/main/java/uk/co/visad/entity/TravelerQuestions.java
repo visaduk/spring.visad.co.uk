@@ -27,15 +27,7 @@ public class TravelerQuestions {
     @Column(name = "record_type", nullable = false, columnDefinition = "ENUM('traveler','dependent')")
     private String recordType; // 'traveler' or 'dependent'
 
-    // Link to Traveler (when record_type = 'traveler')
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "record_id", referencedColumnName = "id", insertable = false, updatable = false, columnDefinition = "INT")
-    private Traveler traveler;
 
-    // Link to Dependent (when record_type = 'dependent')
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "record_id", referencedColumnName = "id", insertable = false, updatable = false, columnDefinition = "INT")
-    private Dependent dependent;
 
     // Occupation fields
     @Column(name = "occupation_status", length = 100)

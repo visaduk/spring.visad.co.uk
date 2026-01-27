@@ -186,10 +186,7 @@ public class Dependent {
     private LocalDateTime lastUpdatedAt;
 
     // Relationship to TravelerQuestions
-    @OneToMany(mappedBy = "dependent", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @org.hibernate.annotations.Where(clause = "record_type = 'dependent'")
-    @Builder.Default
-    private java.util.List<TravelerQuestions> travelerQuestions = new java.util.ArrayList<>();
+
 
     // Helper Methods
     public String getFullName() {

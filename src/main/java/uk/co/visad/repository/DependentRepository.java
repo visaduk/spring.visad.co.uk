@@ -22,13 +22,12 @@ public interface DependentRepository extends JpaRepository<Dependent, Long> {
     Optional<Dependent> findByPublicUrlToken(String token);
 
     // Find dependents with traveler questions
-    @Query("SELECT d FROM Dependent d LEFT JOIN FETCH d.travelerQuestions WHERE d.traveler.id = :travelerId")
+    @Query("SELECT d FROM Dependent d WHERE d.traveler.id = :travelerId")
     List<Dependent> findByTravelerIdWithQuestions(@Param("travelerId") Long travelerId);
 
     // Find dependent with all details
     @Query("SELECT d FROM Dependent d " +
             "LEFT JOIN FETCH d.traveler " +
-            "LEFT JOIN FETCH d.travelerQuestions " +
             "WHERE d.id = :id")
     Optional<Dependent> findByIdWithAllRelations(@Param("id") Long id);
 
