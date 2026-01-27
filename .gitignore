@@ -61,3 +61,5 @@ temp_travelers.json
 
 # Secrets (just in case)
 secrets.properties
+
+application-local.yml
