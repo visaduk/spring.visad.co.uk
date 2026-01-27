@@ -175,4 +175,21 @@ public class TravelerController {
         travelerService.deleteQuestionFile(id, field);
         return ResponseEntity.ok(ApiResponse.successMessage("File deleted successfully"));
     }
+
+    @PostMapping("/{id}/files")
+    public ResponseEntity<ApiResponse<Map<String, String>>> uploadFile(
+            @PathVariable Long id,
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
+            @RequestParam("category") String category) {
+        try {
+            String filePath = travelerService.uploadQuestionFile(id, category, file);
+            return ResponseEntity.ok(ApiResponse.success(
+                Map.of("path", filePath, "message", "File uploaded successfully")
+            ));
+        } catch (java.io.IOException e) {
+            return ResponseEntity.status(500).body(
+                ApiResponse.error("Failed to upload file: " + e.getMessage())
+            );
+        }
+    }
 }

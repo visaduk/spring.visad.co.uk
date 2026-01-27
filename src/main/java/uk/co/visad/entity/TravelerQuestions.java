@@ -210,7 +210,7 @@ public class TravelerQuestions {
     private String evisaNoDateSettled;
 
     @Column(name = "evisa_document_path", length = 255)
-    private String evisaDocument; // Mapped to evisa_document_path column
+    private String evisaDocument;
 
     @Column(name = "share_code", length = 50)
     private String shareCode;
@@ -249,4 +249,5 @@ public class TravelerQuestions {
     public boolean isLocked() {
         return Boolean.TRUE.equals(formComplete);
     }
+
 }

@@ -748,6 +748,8 @@ public class TravelerService {
         // Check if details are verified based on notes
         boolean detailsVerified = t.getNotes() != null && t.getNotes().contains("VERIFIED");
 
+
+
         return TravelerDto.builder().id(t.getId()).name(t.getName()).firstName(t.getFirstName())
                 .lastName(t.getLastName()).detailsVerified(detailsVerified).title(t.getTitle()).gender(t.getGender())
                 .dob(t.getDob()).placeOfBirth(t.getPlaceOfBirth()).countryOfBirth(t.getCountryOfBirth())
@@ -1000,6 +1002,102 @@ public class TravelerService {
         // Simple audit
         // auditService.logChange("traveler", id, "Traveler", "Question: " + field, "",
         // value);
+    }
+
+    @Transactional
+    public String uploadQuestionFile(Long id, String category, org.springframework.web.multipart.MultipartFile file) throws java.io.IOException {
+        // Map frontend category to entity field name
+        String javaField = convertCategoryToJavaField(category);
+        
+        // Get or create TravelerQuestions
+        TravelerQuestions tq = travelerQuestionsRepository
+                .findByRecordIdAndRecordType(id, "traveler")
+                .orElseGet(() -> {
+                    TravelerQuestions newTq = new TravelerQuestions();
+                    newTq.setRecordId(id);
+                    newTq.setRecordType("traveler");
+                    return newTq;
+                });
+
+        // Create upload directory structure: uploads/documents/client_documents/YYYY/MM/
+        LocalDateTime now = LocalDateTime.now();
+        String yearMonth = String.format("%d/%02d", now.getYear(), now.getMonthValue());
+        String uploadDir = "uploads/documents/client_documents/" + yearMonth + "/";
+        java.nio.file.Path uploadPath = java.nio.file.Paths.get(uploadDir);
+        
+        if (!java.nio.file.Files.exists(uploadPath)) {
+            java.nio.file.Files.createDirectories(uploadPath);
+        }
+
+        // Generate unique filename
+        String originalFilename = file.getOriginalFilename();
+        String extension = originalFilename != null && originalFilename.contains(".")
+                ? originalFilename.substring(originalFilename.lastIndexOf("."))
+                : "";
+        String filename = java.util.UUID.randomUUID().toString() + extension;
+        java.nio.file.Path filePath = uploadPath.resolve(filename);
+
+        // Save file to disk
+        java.nio.file.Files.copy(file.getInputStream(), filePath);
+
+        // Build relative path for storage
+        String relativePath = yearMonth + "/" + filename;
+
+        // Get existing files array
+        String currentValue = getQuestionFieldValue(tq, javaField);
+        List<String> files = new ArrayList<>();
+        
+        if (currentValue != null && !currentValue.isEmpty()) {
+            try {
+                if (currentValue.trim().startsWith("[")) {
+                    files = objectMapper.readValue(currentValue, new TypeReference<List<String>>() {});
+                } else {
+                    files.add(currentValue);
+                }
+            } catch (Exception e) {
+                log.warn("Failed to parse existing files, starting fresh: {}", e.getMessage());
+            }
+        }
+
+        // Add new file
+        files.add(relativePath);
+
+        // Save back as JSON
+        String jsonValue = objectMapper.writeValueAsString(files);
+        setObjectField(tq, javaField, jsonValue);
+        travelerQuestionsRepository.save(tq);
+
+        log.info("Uploaded file {} to field {} for traveler {}", filename, javaField, id);
+        return relativePath;
+    }
+
+    private String convertCategoryToJavaField(String category) {
+        // Map frontend category names to entity field names
+        Map<String, String> categoryMap = new HashMap<>();
+        categoryMap.put("evisa_document_path", "evisaDocument");
+        categoryMap.put("share_code_document_path", "shareCodeDocument");
+        categoryMap.put("booking_documents_path", "bookingDocument");
+        categoryMap.put("schengen_visa_image", "schengenVisaImage");
+        categoryMap.put("passport_front", "passportFront");
+        categoryMap.put("passport_back", "passportBack");
+        
+        String javaField = categoryMap.get(category);
+        if (javaField == null) {
+            throw new BadRequestException("Unknown category: " + category);
+        }
+        return javaField;
+    }
+
+    private String getQuestionFieldValue(TravelerQuestions tq, String fieldName) {
+        try {
+            Field field = TravelerQuestions.class.getDeclaredField(fieldName);
+            field.setAccessible(true);
+            Object value = field.get(tq);
+            return value != null ? value.toString() : null;
+        } catch (Exception e) {
+            log.error("Error getting field {} from TravelerQuestions: {}", fieldName, e.getMessage());
+            return null;
+        }
     }
 
     @Transactional
