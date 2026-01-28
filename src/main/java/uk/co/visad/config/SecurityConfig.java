@@ -53,9 +53,8 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // ⚠️ TEMPORARY: All endpoints are public for testing
-                        // TODO: Re-enable authentication before production deployment!
-                        .anyRequest().permitAll())
+                        .requestMatchers("/auth/login", "/auth/check-session", "/auth/health", "/auth/users", "/actuator/health", "/error").permitAll()
+                        .anyRequest().authenticated())
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 

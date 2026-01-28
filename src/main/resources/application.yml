@@ -1,5 +1,5 @@
 server:
-  port: 8089
+  port: 8080
   servlet:
     context-path: /api
   compression:
@@ -13,9 +13,9 @@ spring:
 
   # Database Configuration
   datasource:
-    url: jdbc:mysql://localhost:3306/visad_test?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&zeroDateTimeBehavior=CONVERT_TO_NULL
-    username: root
-    password: elnitish@11 # Change this to your local password
+    url: jdbc:mysql://78.128.8.203/visadcouk_dataf?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&zeroDateTimeBehavior=CONVERT_TO_NULL
+    username: visadcouk_spring
+    password: elnitishspring11 # Change this to your local password
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: 10

@@ -7,14 +7,16 @@ echo "================================================"
 echo "Stopping Spring Boot Backend"
 echo "================================================"
 
-# Stop Spring Boot process
+# Stop Spring Boot process (Maven run or JAR run)
 pkill -f "spring-boot:run"
+pkill -f "visad-api-.*.jar"
 sleep 2
 
 # Check if process is still running
-if pgrep -f "spring-boot:run" > /dev/null; then
+if pgrep -f "spring-boot:run" > /dev/null || pgrep -f "visad-api-.*.jar" > /dev/null; then
     echo "Force killing Spring Boot process..."
     pkill -9 -f "spring-boot:run"
+    pkill -9 -f "visad-api-.*.jar"
     sleep 1
 fi
 

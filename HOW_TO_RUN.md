@@ -39,5 +39,5 @@ Or by running the built JAR file:
 java -jar target/visad-api-1.0.0.jar
 ```
 
-The application will start on port **8080**.
-API Base URL: `http://localhost:8080/api`
+The application will start on port **8089**.
+API Base URL: `http://localhost:8089/api`
