@@ -10,20 +10,12 @@ import uk.co.visad.service.TravelerService;
 import java.util.List;
 import java.util.Map;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.File;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-
 @RestController
 @RequestMapping("/travelers")
 @RequiredArgsConstructor
 public class TravelerController {
 
     private final TravelerService travelerService;
-    private final ObjectMapper objectMapper;
-    private static final String CACHE_FILE = "static_travelers_cache.json";
 
     /**
      * Create a new traveler
@@ -40,35 +32,11 @@ public class TravelerController {
      * PHP equivalent: travelers.php?action=read_all
      */
     @GetMapping("")
-    public ResponseEntity<? extends Object> readAllTravelers(
+    public ResponseEntity<ApiResponse<List<TravelerDto>>> readAllTravelers(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "50") int limit,
             @RequestParam(defaultValue = "false") boolean summary) {
-
-        try {
-            File cacheFile = new File(CACHE_FILE);
-            if (cacheFile.exists()) {
-                System.out.println("Serving from static cache file: " + CACHE_FILE);
-                // Read and return raw JSON directly
-                String jsonContent = Files.readString(cacheFile.toPath());
-                return ResponseEntity.ok()
-                        .header("Content-Type", "application/json")
-                        .body(jsonContent);
-            }
-
-            // Fetch ALL data for the cache (ignoring page/limit)
-            ApiResponse<List<TravelerDto>> response = travelerService.getAllTravelers(1, 10000, false);
-
-            // Serialize to JSON file
-            objectMapper.writeValue(cacheFile, response);
-            System.out.println("Created static cache file: " + CACHE_FILE);
-
-            return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.internalServerError().build();
-        }
+        return ResponseEntity.ok(travelerService.getAllTravelers(page, limit, summary));
     }
 
     /**

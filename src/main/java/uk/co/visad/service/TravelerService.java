@@ -41,10 +41,6 @@ import org.springframework.beans.factory.annotation.Value;
 @Slf4j
 public class TravelerService {
 
-    // TEMPORARY CACHE FOR TESTING
-    private static List<TravelerDto> cachedTravelers = null;
-    private static ApiResponse.PaginationInfo cachedPagination = null;
-
     private final TravelerRepository travelerRepository;
     private final DependentRepository dependentRepository;
     private final TravelerQuestionsRepository travelerQuestionsRepository;
@@ -129,12 +125,6 @@ public class TravelerService {
 
     @Transactional(readOnly = true)
     public ApiResponse<List<TravelerDto>> getAllTravelers(int page, int limit, boolean summary) {
-        if (cachedTravelers != null) {
-            log.info("Returning cached travelers (LATENCY TEST)");
-            return ApiResponse.success(cachedTravelers, cachedPagination);
-        }
-        log.info("Fetching travelers from DB (LATENCY TEST)");
-
         Pageable pageable = PageRequest.of(page - 1, limit, Sort.by(Sort.Direction.DESC, "id"));
 
         if (summary) {
@@ -154,8 +144,6 @@ public class TravelerService {
                     .hasMore(page < summaryPage.getTotalPages())
                     .build();
 
-            cachedTravelers = dtos;
-            cachedPagination = pagination;
             return ApiResponse.success(dtos, pagination);
         }
 
@@ -217,8 +205,6 @@ public class TravelerService {
                 .hasMore(page < travelerPage.getTotalPages())
                 .build();
 
-        cachedTravelers = dtos;
-        cachedPagination = pagination;
         return ApiResponse.success(dtos, pagination);
     }
 
