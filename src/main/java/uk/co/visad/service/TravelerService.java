@@ -148,19 +148,12 @@ public class TravelerService {
         }
 
         // Slow path: full entities with relations
-        Page<Traveler> travelerPage = travelerRepository.findAll(pageable);
+        Page<Traveler> travelerPage = travelerRepository.findAllWithRelations(pageable);
         List<Long> travelerIds = travelerPage.getContent().stream()
                 .map(Traveler::getId)
                 .collect(Collectors.toList());
 
-        // 1. Batch fetch Dependents
-        Map<Long, List<Dependent>> dependentsMap = new HashMap<>();
-        if (!travelerIds.isEmpty()) {
-            List<Dependent> allDependents = dependentRepository.findAllByTraveler_IdIn(travelerIds);
-            dependentsMap = allDependents.stream()
-                    .collect(Collectors.groupingBy(d -> d.getTraveler().getId()));
-        }
-
+        // 1. Dependents are already fetched via EntityGraph
         // 2. Batch fetch TravelerQuestions
         Map<Long, TravelerQuestions> questionsMap = new HashMap<>();
         if (!travelerIds.isEmpty()) {
@@ -173,9 +166,10 @@ public class TravelerService {
 
         // 3. Batch fetch Dependent Questions (Optimization)
         Map<Long, TravelerQuestions> dependentQuestionsMap = new HashMap<>();
-        if (!dependentsMap.isEmpty()) {
-            List<Long> allDependentIds = dependentsMap.values().stream()
-                    .flatMap(List::stream)
+        if (!travelerPage.getContent().isEmpty()) {
+            // Extract all dependents from the already fetched travelers
+            List<Long> allDependentIds = travelerPage.getContent().stream()
+                    .flatMap(t -> t.getDependents().stream())
                     .map(Dependent::getId)
                     .collect(Collectors.toList());
 
@@ -188,12 +182,11 @@ public class TravelerService {
         }
 
         // 4. Map to DTO
-        final Map<Long, List<Dependent>> finalDependentsMap = dependentsMap;
         final Map<Long, TravelerQuestions> finalQuestionsMap = questionsMap;
         final Map<Long, TravelerQuestions> finalDependentQuestionsMap = dependentQuestionsMap;
 
         List<TravelerDto> dtos = travelerPage.getContent().stream()
-                .map(t -> mapToDtoOptimized(t, finalDependentsMap.get(t.getId()), finalQuestionsMap.get(t.getId()),
+                .map(t -> mapToDtoOptimized(t, t.getDependents(), finalQuestionsMap.get(t.getId()),
                         finalDependentQuestionsMap))
                 .collect(Collectors.toList());
 

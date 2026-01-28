@@ -5,6 +5,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.stereotype.Repository;
 import uk.co.visad.entity.Traveler;
 
@@ -52,6 +53,11 @@ public interface TravelerRepository extends JpaRepository<Traveler, Long> {
 
        // Count travelers by status
        long countByStatus(String status);
+
+       // Optimized full fetch with EntityGraph
+       @EntityGraph(attributePaths = { "dependents" })
+       @Query("SELECT t FROM Traveler t ORDER BY t.id DESC")
+       Page<Traveler> findAllWithRelations(Pageable pageable);
 
        // Optimized projection for dashboard
        @Query("SELECT t FROM Traveler t ORDER BY t.id DESC")
