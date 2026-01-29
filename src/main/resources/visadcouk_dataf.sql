@@ -765,3 +765,25 @@ COMMIT;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 
 CREATE INDEX idx_travelers_id_desc ON travelers (id DESC);
+
+CREATE TABLE `biometric_credentials` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) NOT NULL COMMENT 'Links to users.id',
+  `credential_id` varchar(500) NOT NULL COMMENT 'Unique WebAuthn credential identifier',
+  `public_key` text NOT NULL COMMENT 'Public key for signature verification',
+  `counter` int(11) NOT NULL DEFAULT 0 COMMENT 'Sign counter for replay attack prevention',
+  `aaguid` varchar(100) DEFAULT NULL COMMENT 'Authenticator GUID',
+  `device_name` varchar(100) DEFAULT NULL COMMENT 'Friendly device name (iPhone, MacBook, etc)',
+  `created_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6) COMMENT 'When biometric was registered',
+  `last_used` datetime(6) DEFAULT NULL COMMENT 'Last successful authentication',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `credential_id` (`credential_id`),
+  KEY `user_id` (`user_id`),
+  KEY `idx_biometric_user_id` (`user_id`),
+  KEY `idx_biometric_last_used` (`last_used`),
+  CONSTRAINT `biometric_credentials_ibfk_1` 
+    FOREIGN KEY (`user_id`) 
+    REFERENCES `users` (`id`) 
+    ON DELETE CASCADE 
+    ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;

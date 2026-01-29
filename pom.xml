@@ -121,6 +121,12 @@
             <artifactId>h2</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- WebAuthn4J -->
+        <dependency>
+            <groupId>com.webauthn4j</groupId>
+            <artifactId>webauthn4j-core</artifactId>
+            <version>0.21.5.RELEASE</version>
+        </dependency>
     </dependencies>
     
     <build>
