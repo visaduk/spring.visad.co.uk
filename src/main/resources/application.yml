@@ -77,12 +77,17 @@ app:
     max-file-size: 10485760  # 10MB in bytes
 
   cors:
-    allowed-origins: http://localhost:3000,http://localhost:8080,https://vault.visaway.co.uk,http://localhost:8000,http://127.0.0.1:3000,http://127.0.0.1:8080,http://127.0.0.1:8000,http://192.168.1.14:8000,http://localhost:4545,https://v.visad.co.uk,https://l.visad.co.uk,https://spring.visad.co.uk
+    allowed-origin-patterns: "*"
     allowed-methods: GET,POST,PUT,DELETE,OPTIONS
     allowed-headers: "*"
     allow-credentials: true
 
   base-url: https://vault.visad.co.uk
+
+  webauthn:
+    rp-id: visad.co.uk
+    rp-name: Visad Vault
+    origin: https://v.visad.co.uk
 
 # Logging Configuration
 logging:

@@ -55,6 +55,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/auth/login", "/auth/check-session", "/auth/health", "/auth/users",
                                 "/auth/webauthn/**",
+                                "/verify", "/update_personal", "/update_questions", "/upload_files", "/delete_file", "/download_file", "/update_progress", "/mark_complete", "/get_dependent_token",
+                                "/api/verify", "/api/update_personal", "/api/update_questions", "/api/upload_files", "/api/delete_file", "/api/download_file", "/api/update_progress", "/api/mark_complete", "/api/get_dependent_token",
                                 "/actuator/health", "/error")
                         .permitAll()
                         .anyRequest().authenticated())

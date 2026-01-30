@@ -1,8 +1,21 @@
 package uk.co.visad.service;
 
 import com.webauthn4j.WebAuthnManager;
+import com.webauthn4j.authenticator.AuthenticatorImpl;
+import com.webauthn4j.data.AuthenticationData;
+import com.webauthn4j.data.AuthenticationParameters;
+import com.webauthn4j.data.AuthenticationRequest;
+import com.webauthn4j.data.RegistrationData;
+import com.webauthn4j.data.RegistrationParameters;
+import com.webauthn4j.data.RegistrationRequest;
+import com.webauthn4j.data.attestation.authenticator.AAGUID;
+import com.webauthn4j.data.attestation.authenticator.AttestedCredentialData;
+import com.webauthn4j.data.attestation.authenticator.COSEKey;
+import com.webauthn4j.data.attestation.statement.NoneAttestationStatement;
+import com.webauthn4j.data.client.Origin;
 import com.webauthn4j.data.client.challenge.Challenge;
 import com.webauthn4j.data.client.challenge.DefaultChallenge;
+import com.webauthn4j.server.ServerProperty;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,7 +25,9 @@ import uk.co.visad.repository.BiometricCredentialRepository;
 import uk.co.visad.repository.UserRepository;
 
 import java.time.LocalDateTime;
+import java.util.Base64;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -21,12 +36,18 @@ public class BiometricService {
     private final BiometricCredentialRepository biometricRepository;
     private final UserRepository userRepository;
 
+    private final com.webauthn4j.converter.util.ObjectConverter objectConverter = new com.webauthn4j.converter.util.ObjectConverter();
+
     // In a real app, strict origin checking is required.
     // For localhost dev, we might be lenient or configurable.
-    private static final String RP_ID = "localhost";
-    private static final String RP_NAME = "VISAD VAULT";
-    private static final java.util.Set<String> ORIGINS = java.util.Set.of("http://localhost:8080",
-            "http://127.0.0.1:8080");
+    @org.springframework.beans.factory.annotation.Value("${app.webauthn.rp-id:localhost}")
+    private String rpId;
+
+    @org.springframework.beans.factory.annotation.Value("${app.webauthn.rp-name:Visad Vault}")
+    private String rpName;
+
+    @org.springframework.beans.factory.annotation.Value("${app.webauthn.origin:http://localhost:8080}")
+    private String originUrl;
 
     private final WebAuthnManager webAuthnManager = WebAuthnManager.createNonStrictWebAuthnManager();
 
@@ -35,111 +56,104 @@ public class BiometricService {
     }
 
     public String getRpId() {
-        return RP_ID;
+        return rpId;
     }
 
     public String getRpName() {
-        return RP_NAME;
+        return rpName;
     }
 
     @Transactional
     public void completeRegistration(User user, String clientDataJSONStr, String attestationObjectStr,
             Challenge challenge) {
-        byte[] clientDataJSON = java.util.Base64.getUrlDecoder().decode(clientDataJSONStr);
-        byte[] attestationObject = java.util.Base64.getUrlDecoder().decode(attestationObjectStr);
+        byte[] clientDataJSON = Base64.getUrlDecoder().decode(clientDataJSONStr);
+        byte[] attestationObject = Base64.getUrlDecoder().decode(attestationObjectStr);
 
-        com.webauthn4j.data.RegistrationRequest registrationRequest = new com.webauthn4j.data.RegistrationRequest(
-                attestationObject, clientDataJSON);
+        RegistrationRequest registrationRequest = new RegistrationRequest(attestationObject, clientDataJSON);
 
-        com.webauthn4j.data.RegistrationParameters registrationParameters = new com.webauthn4j.data.RegistrationParameters(
-                new com.webauthn4j.server.ServerProperty(
-                        new com.webauthn4j.data.client.Origin("http://localhost:8080"), // Ideally dynamic
-                        RP_ID,
+        RegistrationParameters registrationParameters = new RegistrationParameters(
+                new ServerProperty(
+                        new Origin(originUrl), 
+                        rpId,
                         challenge,
                         null),
                 false // User verification required? (frontend sends 'required', backend should check)
         );
 
-        com.webauthn4j.data.RegistrationData registrationData = webAuthnManager.parse(registrationRequest);
+        RegistrationData registrationData = webAuthnManager.parse(registrationRequest);
         webAuthnManager.validate(registrationData, registrationParameters);
 
         // Extract credential data
-        String credentialId = java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(registrationData
-                .getAttestationObject().getAuthenticatorData().getAttestedCredentialData().getCredentialId());
-        String publicKey = java.util.Base64.getEncoder().encodeToString(
-                new com.webauthn4j.converter.util.CborConverter().writeValueAsBytes(
-                        registrationData.getAttestationObject().getAuthenticatorData().getAttestedCredentialData()
-                                .getCOSEKey()));
-        long count = registrationData.getAttestationObject().getAuthenticatorData().getSignCount();
-        String aaguid = registrationData.getAttestationObject().getAuthenticatorData().getAttestedCredentialData()
-                .getAaguid().toString();
+        AttestedCredentialData attestedCredentialData = registrationData.getAttestationObject().getAuthenticatorData().getAttestedCredentialData();
+        String credentialId = Base64.getUrlEncoder().withoutPadding().encodeToString(attestedCredentialData.getCredentialId());
+        
+        try {
+            String publicKey = Base64.getEncoder().encodeToString(objectConverter.getCborConverter().writeValueAsBytes(attestedCredentialData.getCOSEKey()));
+            long count = registrationData.getAttestationObject().getAuthenticatorData().getSignCount();
+            String aaguid = attestedCredentialData.getAaguid().toString();
 
-        registerCredential(user, credentialId, publicKey, aaguid, count);
+            registerCredential(user, credentialId, publicKey, aaguid, count);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to encode/save credential", e);
+        }
     }
 
     @Transactional
     public User completeLogin(String credentialId, String clientDataJSONStr, String authenticatorDataStr,
             String signatureStr, String userHandleStr, Challenge challenge) {
-        byte[] credentialIdBytes = java.util.Base64.getUrlDecoder().decode(credentialId);
-        byte[] clientDataJSON = java.util.Base64.getUrlDecoder().decode(clientDataJSONStr);
-        byte[] authenticatorData = java.util.Base64.getUrlDecoder().decode(authenticatorDataStr);
-        byte[] signature = java.util.Base64.getUrlDecoder().decode(signatureStr);
-        byte[] userHandle = userHandleStr != null ? java.util.Base64.getUrlDecoder().decode(userHandleStr) : null;
+        byte[] credentialIdBytes = Base64.getUrlDecoder().decode(credentialId);
+        byte[] clientDataJSON = Base64.getUrlDecoder().decode(clientDataJSONStr);
+        byte[] authenticatorData = Base64.getUrlDecoder().decode(authenticatorDataStr);
+        byte[] signature = Base64.getUrlDecoder().decode(signatureStr);
+        byte[] userHandle = userHandleStr != null ? Base64.getUrlDecoder().decode(userHandleStr) : null;
 
         BiometricCredential credential = biometricRepository.findByCredentialId(credentialId)
                 .orElseThrow(() -> new RuntimeException("Credential not found"));
 
-        com.webauthn4j.data.AuthenticationRequest authenticationRequest = new com.webauthn4j.data.AuthenticationRequest(
+        AuthenticationRequest authenticationRequest = new AuthenticationRequest(
                 credentialIdBytes,
                 userHandle,
                 authenticatorData,
                 clientDataJSON,
                 signature);
 
-        // Re-hydrate public key (assuming stored as Base64 encoded COSE key bytes)
-        // Note: In a real app, you might store this differently or use an object mapper
-        // Here we need to convert back to Authenticator object
+        try {
+            // Reconstruct Authenticator object
+            AttestedCredentialData attestedCredentialData = new AttestedCredentialData(
+                    new AAGUID(UUID.fromString(credential.getAaguid())),
+                    credentialIdBytes,
+                    objectConverter.getCborConverter().readValue(Base64.getDecoder().decode(credential.getPublicKey()), COSEKey.class)
+            );
 
-        // This part is tricky without a proper converter helper, so we use the raw
-        // AttestedCredentialData if we had it.
-        // For now, simpler validation: verify signature.
-        // WebAuthn4J requires the generic Authenticator object to validate.
+            AuthenticatorImpl authenticator = new AuthenticatorImpl(
+                    attestedCredentialData,
+                    new NoneAttestationStatement(),
+                    credential.getCounter()
+            );
 
-        // Let's assume for this specific execution we trust the library if we pass the
-        // right params.
-        // We need to reconstruct the Authenticator object from DB data.
+            AuthenticationParameters authenticationParameters = new AuthenticationParameters(
+                    new ServerProperty(
+                            new Origin(originUrl),
+                            rpId,
+                            challenge,
+                            null),
+                    authenticator,
+                    false, // user verification
+                    false  // user presence (default true usually, but strict check handles it)
+            );
 
-        com.webauthn4j.data.attestation.authenticator.AttestedCredentialData attestedCredentialData = new com.webauthn4j.data.attestation.authenticator.AttestedCredentialData(
-                new com.webauthn4j.data.aaguid.AAGUID(java.util.UUID.fromString(credential.getAaguid())),
-                credentialIdBytes,
-                new com.webauthn4j.converter.util.CborConverter().readValue(
-                        java.util.Base64.getDecoder().decode(credential.getPublicKey()),
-                        com.webauthn4j.data.attestation.statement.COSEKey.class));
+            AuthenticationData authenticationData = webAuthnManager.parse(authenticationRequest);
+            webAuthnManager.validate(authenticationData, authenticationParameters);
 
-        com.webauthn4j.data.Authenticator authenticator = new com.webauthn4j.data.Authenticator(
-                attestedCredentialData,
-                new com.webauthn4j.data.attestation.statement.NoneAttestationStatement(), // Not needed for login
-                credential.getCounter());
+            // Update counter
+            credential.setCounter(authenticationData.getAuthenticatorData().getSignCount());
+            credential.setLastUsed(LocalDateTime.now());
+            biometricRepository.save(credential);
 
-        com.webauthn4j.data.AuthenticationParameters authenticationParameters = new com.webauthn4j.data.AuthenticationParameters(
-                new com.webauthn4j.server.ServerProperty(
-                        new com.webauthn4j.data.client.Origin("http://localhost:8080"),
-                        RP_ID,
-                        challenge,
-                        null),
-                authenticator,
-                false, // user verification
-                false);
-
-        com.webauthn4j.data.AuthenticationData authenticationData = webAuthnManager.parse(authenticationRequest);
-        webAuthnManager.validate(authenticationData, authenticationParameters);
-
-        // Update counter
-        credential.setCounter(authenticationData.getAuthenticatorData().getSignCount());
-        credential.setLastUsed(LocalDateTime.now());
-        biometricRepository.save(credential);
-
-        return credential.getUser();
+            return credential.getUser();
+        } catch (Exception e) {
+            throw new RuntimeException("Authentication failed", e);
+        }
     }
 
     @Transactional
@@ -163,3 +177,4 @@ public class BiometricService {
         return userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
     }
+}

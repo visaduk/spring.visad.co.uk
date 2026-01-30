@@ -14,7 +14,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/auth/webauthn")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*") // Adjust for production
+
 public class BiometricController {
 
     private final BiometricService biometricService;
@@ -31,6 +31,8 @@ public class BiometricController {
         Challenge challenge = biometricService.generateChallenge();
         session.setAttribute("REG_CHALLENGE", challenge);
         session.setAttribute("REG_USERNAME", username);
+        System.out.println(">>> CHECKPOINT: Start Registration - Session ID: " + session.getId());
+        System.out.println(">>> CHECKPOINT: Stored Challenge for: " + username);
 
         Map<String, Object> response = new HashMap<>();
         response.put("challenge", Base64.getUrlEncoder().withoutPadding().encodeToString(challenge.getValue()));
@@ -45,9 +47,12 @@ public class BiometricController {
     @PostMapping("/register/finish")
     public ResponseEntity<?> finishRegistration(@RequestBody Map<String, Object> request,
             jakarta.servlet.http.HttpSession session) {
+        System.out.println(">>> CHECKPOINT: Finish Registration - Session ID: " + session.getId());
         try {
             Challenge challenge = (Challenge) session.getAttribute("REG_CHALLENGE");
             String username = (String) session.getAttribute("REG_USERNAME");
+            System.out.println(">>> CHECKPOINT: Session Challenge: " + (challenge != null ? "FOUND" : "NULL"));
+            System.out.println(">>> CHECKPOINT: Session Username: " + username);
 
             if (challenge == null || username == null) {
                 return ResponseEntity.badRequest()
