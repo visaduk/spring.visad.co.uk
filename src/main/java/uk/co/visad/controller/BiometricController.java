@@ -18,18 +18,19 @@ import java.util.Map;
 public class BiometricController {
 
     private final BiometricService biometricService;
+    private final uk.co.visad.security.JwtUtils jwtUtils;
 
     // --- Registration ---
 
     @PostMapping("/register/start")
-    public ResponseEntity<?> startRegistration(@RequestBody Map<String, String> request) {
+    public ResponseEntity<?> startRegistration(@RequestBody Map<String, String> request,
+            jakarta.servlet.http.HttpSession session) {
         String username = request.get("username");
         User user = biometricService.getUserByUsername(username);
 
         Challenge challenge = biometricService.generateChallenge();
-        // Store challenge in session or cache (key=username) - simplified for demo:
-        // returning directly
-        // In prod, use Redis or HttpSession
+        session.setAttribute("REG_CHALLENGE", challenge);
+        session.setAttribute("REG_USERNAME", username);
 
         Map<String, Object> response = new HashMap<>();
         response.put("challenge", Base64.getUrlEncoder().withoutPadding().encodeToString(challenge.getValue()));
@@ -42,28 +43,50 @@ public class BiometricController {
     }
 
     @PostMapping("/register/finish")
-    public ResponseEntity<?> finishRegistration(@RequestBody Map<String, Object> request) {
-        // Parse client response
-        // Verify attestation using biometricService
-        // Save credential
+    public ResponseEntity<?> finishRegistration(@RequestBody Map<String, Object> request,
+            jakarta.servlet.http.HttpSession session) {
+        try {
+            Challenge challenge = (Challenge) session.getAttribute("REG_CHALLENGE");
+            String username = (String) session.getAttribute("REG_USERNAME");
 
-        // This is a placeholder as full verification requires creating
-        // RegistrationContext
-        // and parsing the complex JSON structure from the browser.
-        // For the purpose of this task, we assume success to unblock the frontend work
-        // until the full parser is implemented.
+            if (challenge == null || username == null) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("status", "error", "message", "Registration session expired"));
+            }
 
-        return ResponseEntity.ok(Map.of("status", "success", "message", "Biometric registered"));
+            User user = biometricService.getUserByUsername(username);
+
+            // Extract data from the nested JSON structure sent by frontend
+            // { id, rawId, type, response: { attestationObject, clientDataJSON } }
+            @SuppressWarnings("unchecked")
+            Map<String, String> responseData = (Map<String, String>) request.get("response");
+            String attestationObject = responseData.get("attestationObject");
+            String clientDataJSON = responseData.get("clientDataJSON");
+
+            biometricService.completeRegistration(user, clientDataJSON, attestationObject, challenge);
+
+            session.removeAttribute("REG_CHALLENGE");
+            session.removeAttribute("REG_USERNAME");
+
+            return ResponseEntity.ok(Map.of("status", "success", "message", "Biometric registered"));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest()
+                    .body(Map.of("status", "error", "message", "Verification failed: " + e.getMessage()));
+        }
     }
 
     // --- Authentication ---
 
     @PostMapping("/login/start")
-    public ResponseEntity<?> startLogin(@RequestBody Map<String, String> request) {
+    public ResponseEntity<?> startLogin(@RequestBody Map<String, String> request,
+            jakarta.servlet.http.HttpSession session) {
         String username = request.get("username");
         biometricService.getUserByUsername(username); // Check user exists
 
         Challenge challenge = biometricService.generateChallenge();
+        session.setAttribute("AUTH_CHALLENGE", challenge);
+        session.setAttribute("AUTH_USERNAME", username);
 
         Map<String, Object> response = new HashMap<>();
         response.put("challenge", Base64.getUrlEncoder().withoutPadding().encodeToString(challenge.getValue()));
@@ -73,12 +96,38 @@ public class BiometricController {
     }
 
     @PostMapping("/login/finish")
-    public ResponseEntity<?> finishLogin(@RequestBody Map<String, Object> request) {
-        // Parse assertion
-        // Verify signature
-        // Return JWT token
+    public ResponseEntity<?> finishLogin(@RequestBody Map<String, Object> request,
+            jakarta.servlet.http.HttpSession session) {
+        try {
+            Challenge challenge = (Challenge) session.getAttribute("AUTH_CHALLENGE");
 
-        // Placeholder returning success
-        return ResponseEntity.ok(Map.of("status", "success", "token", "dummy-jwt-token-for-biometric"));
+            if (challenge == null) {
+                return ResponseEntity.badRequest().body(Map.of("status", "error", "message", "Login session expired"));
+            }
+
+            String credentialId = (String) request.get("id");
+            @SuppressWarnings("unchecked")
+            Map<String, String> responseData = (Map<String, String>) request.get("response");
+            String authenticatorData = responseData.get("authenticatorData");
+            String clientDataJSON = responseData.get("clientDataJSON");
+            String signature = responseData.get("signature");
+            String userHandle = responseData.get("userHandle");
+
+            User user = biometricService.completeLogin(credentialId, clientDataJSON, authenticatorData, signature,
+                    userHandle, challenge);
+
+            session.removeAttribute("AUTH_CHALLENGE");
+            session.removeAttribute("AUTH_USERNAME");
+
+            // Generate real JWT token
+            String token = jwtUtils.generateTokenFromUsername(user.getUsername(), user.getId(), user.getRole());
+
+            return ResponseEntity.ok(Map.of("status", "success", "token", token, "username", user.getUsername(), "role",
+                    user.getRole()));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(401)
+                    .body(Map.of("status", "error", "message", "Authentication failed: " + e.getMessage()));
+        }
     }
 }
