@@ -47,6 +47,7 @@ public class TravelerService {
     private final VisaUrlRepository visaUrlRepository;
     private final AuditService auditService;
     private final ObjectMapper objectMapper;
+    private final org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
 
     @Value("${app.base-url:}")
     private String appBaseUrl;
@@ -320,6 +321,9 @@ public class TravelerService {
         if (!Objects.equals(oldValue, value)) {
             auditService.logChange("traveler", id, traveler.getName(), field, oldValue, value);
         }
+        
+        // Broadcast the real-time update
+        broadcastDataUpdate(id, field, value);
     }
 
     @Transactional
@@ -377,6 +381,9 @@ public class TravelerService {
             if (!Objects.equals(oldValue, value)) {
                 auditService.logChange("traveler", id, traveler.getName(), field, oldValue, value);
             }
+            
+            // Broadcast the real-time update
+            broadcastDataUpdate(id, field, value);
         }
 
         // Update metadata
@@ -672,6 +679,22 @@ public class TravelerService {
         LocalDate date = parseDate(value);
         tq.setTravelDateFrom(date);
         travelerQuestionsRepository.save(tq);
+    }
+
+    private void broadcastDataUpdate(Long travelerId, String field, Object value) {
+        try {
+            Map<String, Object> update = new HashMap<>();
+            update.put("type", "DATA_UPDATE");
+            update.put("targetType", "TRAVELER");
+            update.put("targetId", travelerId);
+            update.put("field", field);
+            update.put("value", value);
+            update.put("updatedBy", getCurrentUsername());
+            
+            messagingTemplate.convertAndSend("/topic/presence", update);
+        } catch (Exception e) {
+            log.error("Failed to broadcast data update for traveler {}", travelerId, e);
+        }
     }
 
     private TravelerDto mapToDto(Traveler t, List<Dependent> dependents, TravelerQuestions questions) {

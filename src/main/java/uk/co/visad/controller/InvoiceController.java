@@ -17,10 +17,14 @@ public class InvoiceController {
 
     private final InvoiceService invoiceService;
 
-    @GetMapping("/get_history")
+    @GetMapping("/{id}/history")
     public ResponseEntity<ApiResponse<List<InvoiceHistory>>> getHistory(
-            @RequestParam("traveler_id") Long travelerId) {
-        List<InvoiceHistory> history = invoiceService.getHistory(travelerId);
+            @PathVariable Long id,
+            @RequestParam("type") String recordType) {
+        // Assuming recordType determines if ID is traveler or dependent, 
+        // but for now passing ID directly if service expects it.
+        // Adjust dependent on service implementation.
+        List<InvoiceHistory> history = invoiceService.getHistory(id);
         return ResponseEntity.ok(ApiResponse.success(history));
     }
 

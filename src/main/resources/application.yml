@@ -13,10 +13,10 @@ spring:
 
   # Database Configuration
   datasource:
-    url: jdbc:mysql://78.128.8.203/visadcouk_dataf?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&zeroDateTimeBehavior=CONVERT_TO_NULL
-    username: visadcouk_spring
-    password: elnitishspring11 # Change this to your local password
-    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mariadb://localhost:3306/visadcouk_dataf
+    username: visad_elspring
+    password: nitishapple11 # Change this to your local password
+    driver-class-name: org.mariadb.jdbc.Driver
     hikari:
       maximum-pool-size: 10
       minimum-idle: 5
@@ -29,7 +29,7 @@ spring:
     show-sql: true
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.MySQLDialect
+        dialect: org.hibernate.dialect.MariaDBDialect
         format_sql: false
         generate_statistics: true
 
