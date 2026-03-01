@@ -33,6 +33,7 @@ public class LockerService {
     private final DependentRepository dependentRepository;
     private final TravelerQuestionsRepository travelerQuestionsRepository;
     private final ObjectMapper objectMapper;
+    private final LockerActivityService lockerActivityService;
 
     private static final DateTimeFormatter DOB_FORMATTER = DateTimeFormatter.ofPattern("ddMMyyyy");
 
@@ -69,6 +70,9 @@ public class LockerService {
         // Get co-travelers (Dependents)
         List<Dependent> dependents = dependentRepository.findByTraveler_Id(traveler.getId());
 
+        // Log activity
+        lockerActivityService.record(token, "FORM_STARTED", "Client logged in");
+
         // Build response DTO
         return ApplicantDataDTO.builder()
                 .personal(mapTravelerToDTO(traveler))
@@ -97,6 +101,7 @@ public class LockerService {
             dependentRepository.save(record.dependent);
         }
 
+        lockerActivityService.record(token, "PERSONAL_UPDATED", "Updated field: " + field);
         log.info("Updated personal field: token={}, field={}", token, field);
     }
 
@@ -138,6 +143,7 @@ public class LockerService {
             dependentRepository.save(record.dependent);
         }
 
+        lockerActivityService.record(token, "QUESTIONS_UPDATED", "Updated: " + String.join(", ", data.keySet()));
         log.info("Updated question fields: token={}, fields={}", token, data.keySet());
     }
 
@@ -171,6 +177,7 @@ public class LockerService {
         questions.setProgressPercentage(100);
         travelerQuestionsRepository.save(questions);
 
+        lockerActivityService.record(token, "FORM_SUBMITTED", "Application submitted and locked");
         log.info("Application marked complete: token={}", token);
     }
 

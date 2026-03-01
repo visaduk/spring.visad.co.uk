@@ -8,9 +8,11 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import uk.co.visad.dto.ApiResponse;
 import uk.co.visad.dto.locker.LockerDtos.*;
+import uk.co.visad.entity.LockerActivity;
 import uk.co.visad.exception.ResourceNotFoundException;
 import uk.co.visad.exception.UnauthorizedException;
 import uk.co.visad.service.FileUploadService;
+import uk.co.visad.service.LockerActivityService;
 import uk.co.visad.service.LockerService;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -31,6 +33,7 @@ public class LockerController {
 
     private final LockerService lockerService;
     private final FileUploadService fileUploadService;
+    private final LockerActivityService lockerActivityService;
 
     /**
      * Verify token and password
@@ -174,6 +177,14 @@ public class LockerController {
         lockerService.markApplicationComplete(request.getToken());
 
         return ResponseEntity.ok(ApiResponse.successMessage("Application submitted"));
+    }
+
+    /**
+     * Get recent locker activities for admin notification history (authenticated)
+     */
+    @GetMapping("/recent_activities")
+    public ResponseEntity<ApiResponse<java.util.List<LockerActivity>>> recentActivities() {
+        return ResponseEntity.ok(ApiResponse.success(lockerActivityService.getRecent()));
     }
 
     /**

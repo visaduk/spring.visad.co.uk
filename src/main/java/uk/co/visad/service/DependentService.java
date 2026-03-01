@@ -96,6 +96,7 @@ public class DependentService {
                 .packageType(traveler.getPackage_())
                 .visaType(traveler.getVisaType())
                 .whatsappContact(traveler.getWhatsappContact())
+                .plannedTravelDate(traveler.getPlannedTravelDate())
                 .createdByUsername(username)
                 .build();
 

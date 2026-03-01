@@ -30,7 +30,7 @@ if pgrep -f "spring-boot:run" > /dev/null; then
     echo ""
     echo "Recent Logs (last 10 lines):"
     echo "------------------------------------------------"
-    tail -10 /home/ubuntu/spring.visad.co.uk/server.log
+    tail -10 /home/VisaD/visad.co.uk/spring.visad.co.uk/server.log
     echo "------------------------------------------------"
 else
     echo "Status: ✗ NOT RUNNING"

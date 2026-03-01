@@ -48,13 +48,20 @@ public class PresenceService {
         String userId = sessionUserMap.remove(sessionId);
         if (userId != null) {
             log.info("Removing session: {} for user: {}", sessionId, userId);
+            // Track whether this user went fully offline so we can broadcast AFTER map removal
+            final String[] offlineUsername = {null};
             presences.computeIfPresent(userId, (key, userPresence) -> {
                 userPresence.removeSession(sessionId);
                 if (!userPresence.isOnline()) {
-                    broadcastUpdate(userId, sessionId, "OFFLINE", null);
+                    offlineUsername[0] = userPresence.getUsername();
+                    return null; // Remove user from map
                 }
-                return userPresence.isOnline() ? userPresence : null; // Remove user if no sessions
+                return userPresence;
             });
+            // Broadcast AFTER removal so activeUserCount/activeUsernames are accurate
+            if (offlineUsername[0] != null) {
+                broadcastUpdate(userId, sessionId, "OFFLINE", null, offlineUsername[0]);
+            }
         }
     }
 
@@ -112,6 +119,8 @@ public class PresenceService {
         });
         
         snapshot.put("users", userList);
+        snapshot.put("activeUserCount", getActiveUserCount());
+        snapshot.put("activeUsernames", getActiveUsernames());
         return snapshot;
     }
     
@@ -120,16 +129,47 @@ public class PresenceService {
         messagingTemplate.convertAndSendToUser(username, "/queue/presence", getSnapshot());
     }
 
+    /**
+     * Stateful count of distinct connected users — derived from the presences map.
+     * Included in every broadcast so all clients stay in sync.
+     */
+    public int getActiveUserCount() {
+        return presences.size();
+    }
+
+    public List<String> getActiveUsernames() {
+        return presences.values().stream()
+                .map(UserPresence::getUsername)
+                .collect(Collectors.toList());
+    }
+
     private void broadcastUpdate(String userId, String sessionId, String status, Activity activity) {
+        broadcastUpdate(userId, sessionId, status, activity, null);
+    }
+
+    private void broadcastUpdate(String userId, String sessionId, String status, Activity activity, String explicitUsername) {
         Map<String, Object> update = new HashMap<>();
         update.put("type", "UPDATE");
         update.put("userId", userId);
         update.put("sessionId", sessionId);
         update.put("status", status);
+        // Include username — use explicit if provided (user already removed from map), else look up
+        if (explicitUsername != null) {
+            update.put("username", explicitUsername);
+        } else {
+            UserPresence up = presences.get(userId);
+            if (up != null) {
+                update.put("username", up.getUsername());
+            }
+        }
         if (activity != null) {
             update.put("activity", activity);
         }
-        
+
+        // Always include authoritative active-user count + names
+        update.put("activeUserCount", getActiveUserCount());
+        update.put("activeUsernames", getActiveUsernames());
+
         messagingTemplate.convertAndSend("/topic/presence", update);
     }
 

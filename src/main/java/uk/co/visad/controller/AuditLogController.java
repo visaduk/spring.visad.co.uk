@@ -14,9 +14,14 @@ import uk.co.visad.repository.DependentRepository;
 import uk.co.visad.repository.TravelerRepository;
 import uk.co.visad.service.AuditService;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -43,36 +48,56 @@ public class AuditLogController {
             "dob", "passport_issue", "passport_expire", "planned_travel_date", "doc_date");
 
     /**
-     * Read all logs for a record
+     * Read all logs (paginated) or logs for a specific record
      * PHP equivalent: logs.php?action=read_all
      */
     @GetMapping("")
-    public ResponseEntity<ApiResponse<List<AuditLogDto.Response>>> readAllLogs(
+    public ResponseEntity<ApiResponse<?>> readAllLogs(
             @RequestParam(required = false, defaultValue = "0") Long record_id,
-            @RequestParam(required = false, defaultValue = "") String record_type) {
-
-        List<AuditLog> logs;
-        if (record_id > 0 && !record_type.isEmpty()) {
-            logs = auditLogRepository.findByRecordIdAndRecordTypeOrderByTimestampDesc(record_id, record_type);
-        } else {
-            logs = auditLogRepository.findAll();
-        }
+            @RequestParam(required = false, defaultValue = "") String record_type,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "100") int limit) {
 
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
-        List<AuditLogDto.Response> response = logs.stream()
-                .map(log -> AuditLogDto.Response.builder()
-                        .id(log.getId())
-                        .username(log.getUsername())
-                        .recordType(log.getRecordType())
-                        .recordName(log.getRecordName())
-                        .fieldChanged(log.getFieldChanged())
-                        .oldValue(log.getOldValue())
-                        .newValue(log.getNewValue())
-                        .formattedTimestamp(log.getTimestamp().format(formatter))
-                        .build())
+
+        // Record-specific: return all logs for that record (no pagination needed)
+        if (record_id > 0 && !record_type.isEmpty()) {
+            List<AuditLog> logs = auditLogRepository.findByRecordIdAndRecordTypeOrderByTimestampDesc(record_id, record_type);
+            List<AuditLogDto.Response> response = logs.stream()
+                    .map(log -> mapToDto(log, formatter))
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(ApiResponse.success(response));
+        }
+
+        // Global paginated list
+        Page<AuditLog> pageResult = auditLogRepository.findAllByOrderByTimestampDesc(
+                PageRequest.of(Math.max(0, page - 1), Math.min(limit, 500)));
+
+        List<AuditLogDto.Response> responseList = pageResult.getContent().stream()
+                .map(log -> mapToDto(log, formatter))
                 .collect(Collectors.toList());
 
-        return ResponseEntity.ok(ApiResponse.success(response));
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("logs", responseList);
+        result.put("total", pageResult.getTotalElements());
+        result.put("page", page);
+        result.put("totalPages", pageResult.getTotalPages());
+        result.put("limit", limit);
+
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    private AuditLogDto.Response mapToDto(AuditLog log, DateTimeFormatter formatter) {
+        return AuditLogDto.Response.builder()
+                .id(log.getId())
+                .username(log.getUsername())
+                .recordType(log.getRecordType())
+                .recordName(log.getRecordName())
+                .fieldChanged(log.getFieldChanged())
+                .oldValue(log.getOldValue())
+                .newValue(log.getNewValue())
+                .formattedTimestamp(log.getTimestamp().format(formatter))
+                .build();
     }
 
     /**

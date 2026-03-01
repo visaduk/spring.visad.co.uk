@@ -22,7 +22,12 @@ fi
 echo "✓ Spring Boot stopped"
 
 # Navigate to project directory
-cd /home/ubuntu/spring.visad.co.uk
+cd /home/VisaD/visad.co.uk/spring.visad.co.uk
+
+# Load env vars (encryption key, etc.)
+if [ -f .env ]; then
+    source .env
+fi
 
 # Start Spring Boot in background
 echo "Starting Spring Boot..."
@@ -43,7 +48,7 @@ if pgrep -f "spring-boot:run" > /dev/null; then
         echo "✓ Application is healthy and ready!"
     else
         echo "⚠ Application started but may still be initializing..."
-        echo "  Check logs: tail -f /home/ubuntu/spring.visad.co.uk/server.log"
+        echo "  Check logs: tail -f /home/VisaD/visad.co.uk/spring.visad.co.uk/server.log"
     fi
     
     echo ""
@@ -51,15 +56,15 @@ if pgrep -f "spring-boot:run" > /dev/null; then
     echo "Spring Boot Backend is running"
     echo "================================================"
     echo "Port: 8080"
-    echo "Logs: /home/ubuntu/spring.visad.co.uk/server.log"
+    echo "Logs: /home/VisaD/visad.co.uk/spring.visad.co.uk/server.log"
     echo ""
     echo "Useful commands:"
-    echo "  View logs: tail -f /home/ubuntu/spring.visad.co.uk/server.log"
+    echo "  View logs: tail -f /home/VisaD/visad.co.uk/spring.visad.co.uk/server.log"
     echo "  Stop: pkill -f 'spring-boot:run'"
     echo "  Check status: ps aux | grep spring-boot"
     echo "================================================"
 else
     echo "✗ Failed to start Spring Boot"
-    echo "Check logs: tail -50 /home/ubuntu/spring.visad.co.uk/server.log"
+    echo "Check logs: tail -50 /home/VisaD/visad.co.uk/spring.visad.co.uk/server.log"
     exit 1
 fi

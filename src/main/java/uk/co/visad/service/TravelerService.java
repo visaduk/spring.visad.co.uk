@@ -34,7 +34,9 @@ import java.util.*;
 import java.util.stream.Collectors;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import uk.co.visad.util.FileEncryptionUtil;
 
 @Service
 @RequiredArgsConstructor
@@ -51,6 +53,12 @@ public class TravelerService {
 
     @Value("${app.base-url:}")
     private String appBaseUrl;
+
+    @Value("${app.upload.root:/home/VisaD/visad.co.uk/vault_uploads}")
+    private String uploadRoot;
+
+    @Autowired(required = false)
+    private FileEncryptionUtil encryptionUtil;
 
     private static final Set<String> ALLOWED_FIELDS = Set.of(
             "name", "travelCountry", "visaCenter", "package", "visaType", "status", "whatsappContact",
@@ -305,6 +313,15 @@ public class TravelerService {
         traveler.setLastUpdatedAt(LocalDateTime.now());
         travelerRepository.save(traveler);
 
+        // Propagate travel date to all dependents
+        if ("plannedTravelDate".equals(javaField)) {
+            List<Dependent> deps = dependentRepository.findByTraveler_Id(id);
+            if (!deps.isEmpty()) {
+                deps.forEach(d -> d.setPlannedTravelDate(traveler.getPlannedTravelDate()));
+                dependentRepository.saveAll(deps);
+            }
+        }
+
         // Update visa link if country or center changed
         if ("travelCountry".equals(javaField) || "visaCenter".equals(javaField)) {
             updateVisaLink(traveler);
@@ -337,6 +354,7 @@ public class TravelerService {
 
         boolean visaLinkNeedsUpdate = false;
         boolean addressNeedsSync = false;
+        boolean travelDateChanged = false;
 
         // Process all updates
         for (Map.Entry<String, Object> entry : updates.entrySet()) {
@@ -361,6 +379,7 @@ public class TravelerService {
             // Handle special fields
             if ("plannedTravelDate".equals(javaField)) {
                 updateTravelerQuestionsDate(id, "traveler", value);
+                travelDateChanged = true;
             } else {
                 setFieldValue(traveler, javaField, value);
             }
@@ -398,6 +417,14 @@ public class TravelerService {
 
         if (addressNeedsSync) {
             syncFamilyAddress(traveler);
+        }
+
+        if (travelDateChanged) {
+            List<Dependent> deps = dependentRepository.findByTraveler_Id(id);
+            if (!deps.isEmpty()) {
+                deps.forEach(d -> d.setPlannedTravelDate(traveler.getPlannedTravelDate()));
+                dependentRepository.saveAll(deps);
+            }
         }
     }
 
@@ -1158,30 +1185,34 @@ public class TravelerService {
                     return newTq;
                 });
 
-        // Create upload directory structure:
-        // uploads/documents/client_documents/YYYY/MM/
+        // Save file to uploadRoot/locker/YYYY/MM/
         LocalDateTime now = LocalDateTime.now();
-        String yearMonth = String.format("%d/%02d", now.getYear(), now.getMonthValue());
-        String uploadDir = "uploads/documents/client_documents/" + yearMonth + "/";
-        java.nio.file.Path uploadPath = java.nio.file.Paths.get(uploadDir);
+        String year = String.valueOf(now.getYear());
+        String month = String.format("%02d", now.getMonthValue());
 
-        if (!java.nio.file.Files.exists(uploadPath)) {
-            java.nio.file.Files.createDirectories(uploadPath);
-        }
-
-        // Generate unique filename
         String originalFilename = file.getOriginalFilename();
         String extension = originalFilename != null && originalFilename.contains(".")
                 ? originalFilename.substring(originalFilename.lastIndexOf("."))
                 : "";
         String filename = java.util.UUID.randomUUID().toString() + extension;
-        java.nio.file.Path filePath = uploadPath.resolve(filename);
 
-        // Save file to disk
-        java.nio.file.Files.copy(file.getInputStream(), filePath);
+        java.nio.file.Path uploadDir = java.nio.file.Paths.get(uploadRoot, "locker", year, month);
+        if (!java.nio.file.Files.exists(uploadDir)) {
+            java.nio.file.Files.createDirectories(uploadDir);
+        }
+        if (encryptionUtil != null) {
+            try {
+                byte[] encrypted = encryptionUtil.encrypt(file.getInputStream().readAllBytes());
+                java.nio.file.Files.write(uploadDir.resolve(filename), encrypted);
+            } catch (java.security.GeneralSecurityException e) {
+                throw new java.io.IOException("Failed to encrypt file", e);
+            }
+        } else {
+            java.nio.file.Files.copy(file.getInputStream(), uploadDir.resolve(filename));
+        }
 
-        // Build relative path for storage
-        String relativePath = yearMonth + "/" + filename;
+        // Stored key relative to uploadRoot/locker/ — matches FileUploadService format
+        String relativePath = year + "/" + month + "/" + filename;
 
         // Get existing files array
         String currentValue = getQuestionFieldValue(tq, javaField);

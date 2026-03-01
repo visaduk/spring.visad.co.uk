@@ -21,11 +21,28 @@ public class InvoiceController {
     public ResponseEntity<ApiResponse<List<InvoiceHistory>>> getHistory(
             @PathVariable Long id,
             @RequestParam("type") String recordType) {
-        // Assuming recordType determines if ID is traveler or dependent, 
-        // but for now passing ID directly if service expects it.
-        // Adjust dependent on service implementation.
         List<InvoiceHistory> history = invoiceService.getHistory(id);
         return ResponseEntity.ok(ApiResponse.success(history));
+    }
+
+    @GetMapping("/get_history")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getHistoryByTravelerId(
+            @RequestParam("traveler_id") Long travelerId) {
+        List<InvoiceHistory> history = invoiceService.getHistory(travelerId);
+        String lastInv = history.stream()
+                .filter(h -> "invoice".equals(h.getInvoiceType()))
+                .findFirst()
+                .map(h -> h.getSentAt() != null ? h.getSentAt().toString() : null)
+                .orElse(null);
+        String lastTInv = history.stream()
+                .filter(h -> "t-invoice".equals(h.getInvoiceType()))
+                .findFirst()
+                .map(h -> h.getSentAt() != null ? h.getSentAt().toString() : null)
+                .orElse(null);
+        Map<String, Object> result = new java.util.HashMap<>();
+        result.put("last_sent_invoice", lastInv);
+        result.put("last_sent_t_invoice", lastTInv);
+        return ResponseEntity.ok(ApiResponse.success(result));
     }
 
     @GetMapping("/{recordType}/{id}")

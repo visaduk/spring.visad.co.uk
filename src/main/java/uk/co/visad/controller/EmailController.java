@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import uk.co.visad.dto.ApiResponse;
 import uk.co.visad.dto.EmailInvoiceRequest;
+import uk.co.visad.dto.VerificationEmailRequest;
 import uk.co.visad.service.EmailService;
 
 @RestController
@@ -18,5 +19,11 @@ public class EmailController {
     public ResponseEntity<ApiResponse<Void>> sendInvoice(@RequestBody EmailInvoiceRequest request) {
         emailService.sendInvoiceEmail(request);
         return ResponseEntity.ok(ApiResponse.successMessage("Email sent successfully"));
+    }
+
+    @PostMapping("/send-verification")
+    public ResponseEntity<ApiResponse<Void>> sendVerification(@RequestBody VerificationEmailRequest request) {
+        emailService.sendVerificationEmail(request);
+        return ResponseEntity.ok(ApiResponse.successMessage("Verification email sent successfully"));
     }
 }

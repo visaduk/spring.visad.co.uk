@@ -4,7 +4,10 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import uk.co.visad.dto.locker.LockerDtos.FileUploadResponse;
@@ -16,22 +19,19 @@ import uk.co.visad.exception.UnauthorizedException;
 import uk.co.visad.repository.DependentRepository;
 import uk.co.visad.repository.TravelerQuestionsRepository;
 import uk.co.visad.repository.TravelerRepository;
+import uk.co.visad.util.FileEncryptionUtil;
+import uk.co.visad.util.NamedByteArrayResource;
 
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
-import java.time.LocalDate;
-import org.springframework.core.io.Resource;
-import org.springframework.core.io.UrlResource;
-import java.net.MalformedURLException;
 
-/**
- * File Upload Service for Locker
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -41,9 +41,16 @@ public class FileUploadService {
     private final DependentRepository dependentRepository;
     private final TravelerQuestionsRepository travelerQuestionsRepository;
     private final ObjectMapper objectMapper;
+    private final LockerActivityService lockerActivityService;
 
-    @Value("${app.upload.base-dir:./uploads}")
-    private String uploadBasePath;
+    // New uploads go to:  uploadRoot/locker/YYYY/MM/
+    @Value("${app.upload.root:/home/VisaD/visad.co.uk/vault_uploads}")
+    private String uploadRoot;
+
+    // Legacy PHP-era files live under the old vault.visad.co.uk/uploads/documents/ tree.
+    // We only READ from here (download fallback) — never write.
+    @Value("${app.upload.legacy-dir:/home/VisaD/visad.co.uk/vault.visad.co.uk/uploads/documents}")
+    private String legacyDir;
 
     @Value("${app.upload.allowed-extensions:pdf,doc,docx,jpg,jpeg,png}")
     private String allowedExtensionsString;
@@ -51,28 +58,27 @@ public class FileUploadService {
     @Value("${app.upload.max-file-size:10485760}")
     private long maxFileSize;
 
-    // Map of frontend field name -> Entity field name
+    @Autowired(required = false)
+    private FileEncryptionUtil encryptionUtil;
+
     private static final Map<String, String> FIELD_MAPPING = Map.of(
             "evisa_document_path", "evisaDocument",
             "share_code_document_path", "shareCodeDocument",
             "booking_documents_path", "bookingDocument",
             "passport_front", "passportFront",
-            "passport_back", "passportBack");
+            "passport_back", "passportBack",
+            "schengen_visa_image", "schengenVisaImage");
 
     public FileUploadResponse uploadFiles(String token, String dbField, MultipartFile[] files) {
         log.info("Uploading {} files for field: {}", files.length, dbField);
 
         if (!FIELD_MAPPING.containsKey(dbField)) {
-            // Allow if it matches entity field directly?
-            // For safety, only allow mapped fields or exact matches if safe.
             throw new IllegalArgumentException("Invalid field: " + dbField);
         }
 
         RecordWrapper record = findRecordByToken(token);
 
         if (record.questions == null) {
-            // Should exist if they are uploading files? Or create?
-            // Usually created on login or update.
             throw new ResourceNotFoundException("Questions record not found");
         }
         TravelerQuestions questions = record.questions;
@@ -88,8 +94,7 @@ public class FileUploadService {
         List<String> errors = new ArrayList<>();
 
         for (MultipartFile file : files) {
-            if (file.isEmpty())
-                continue;
+            if (file.isEmpty()) continue;
             try {
                 validateFile(file);
                 String filename = saveFile(file, record.getId());
@@ -102,6 +107,8 @@ public class FileUploadService {
 
         updateQuestionField(questions, entityField, uploadedFiles);
         travelerQuestionsRepository.save(questions);
+        lockerActivityService.record(token, "FILE_UPLOADED",
+                "Uploaded " + (uploadedFiles.size() - existingFiles.size()) + " file(s) to: " + dbField);
 
         return FileUploadResponse.builder()
                 .filenames(uploadedFiles)
@@ -119,13 +126,9 @@ public class FileUploadService {
         RecordWrapper record = findRecordByToken(token);
         TravelerQuestions questions = record.questions;
 
-        if (questions == null)
-            throw new ResourceNotFoundException("Questions not found");
+        if (questions == null) throw new ResourceNotFoundException("Questions not found");
 
         if (Boolean.TRUE.equals(questions.getFormComplete())) {
-            // throw new IllegalStateException("Application is locked");
-            // Allow delete even if locked? Usually no.
-            // Keeping restriction for now.
             throw new IllegalStateException("Application is locked");
         }
 
@@ -134,65 +137,83 @@ public class FileUploadService {
 
         if (existingFiles.remove(filename)) {
             try {
-                Path filePath = Paths.get(uploadBasePath, filename);
-                Files.deleteIfExists(filePath);
-                log.info("Deleted physical file: {}", filename);
+                Path lockerBase = Paths.get(uploadRoot, "locker").normalize();
+                Path filePath = lockerBase.resolve(filename).normalize();
+                if (filePath.startsWith(lockerBase)) {
+                    Files.deleteIfExists(filePath);
+                    log.info("Deleted physical file: {}", filename);
+                }
             } catch (IOException e) {
                 log.error("Failed to delete physical file: {}", filename, e);
             }
 
             updateQuestionField(questions, entityField, existingFiles);
             travelerQuestionsRepository.save(questions);
+            lockerActivityService.record(token, "FILE_DELETED", "Deleted file in: " + dbField);
         }
 
         return existingFiles;
     }
 
     public Resource getFileAsResource(String token, String filename) {
-        // 1. Verify token (security)
-        findRecordByToken(token); // Throws UnauthorizedException if invalid
+        findRecordByToken(token);
 
         try {
-            Path basePath = Paths.get(uploadBasePath).normalize();
-            Path filePath = basePath.resolve(filename).normalize();
-            Resource resource = new UrlResource(filePath.toUri());
-
-            if (resource.exists() && resource.isReadable()) {
-                // Security check: ensure file is inside upload base directory
-                if (!filePath.startsWith(basePath)) {
-                     throw new UnauthorizedException("Invalid file path");
-                }
-                return resource;
-            } 
-            
-            // Fallback: Check in sibling directories for legacy files (bookings, evisa, etc.)
-            // Assuming base-dir is .../client_documents, parent is .../documents
-            Path parentPath = basePath.getParent();
-            if (parentPath != null) {
-                String[] legacyFolders = {"bookings", "evisa", "share_code", "flight", "hotel", "insurance", "application", "appointment", "forms"};
-                
-                for (String folder : legacyFolders) {
-                    Path legacyPath = parentPath.resolve(folder).resolve(filename).normalize();
-                    Resource legacyResource = new UrlResource(legacyPath.toUri());
-                    
-                    if (legacyResource.exists() && legacyResource.isReadable()) {
-                        // Security check: ensure file is inside the parent documents directory
-                        if (!legacyPath.startsWith(parentPath)) {
-                            continue;
-                        }
-                        log.info("Found legacy file in sibling folder: {}/{}", folder, filename);
-                        return legacyResource;
+            // Primary: new unified location  →  uploadRoot/locker/YYYY/MM/filename
+            Path lockerBase = Paths.get(uploadRoot, "locker").normalize();
+            Path filePath = lockerBase.resolve(filename).normalize();
+            if (!filePath.startsWith(lockerBase)) {
+                throw new UnauthorizedException("Invalid file path");
+            }
+            if (Files.exists(filePath)) {
+                byte[] bytes = Files.readAllBytes(filePath);
+                if (encryptionUtil != null && encryptionUtil.isEncrypted(bytes)) {
+                    try {
+                        bytes = encryptionUtil.decrypt(bytes);
+                        log.info("Decrypted file for download: {}", filename);
+                    } catch (java.security.GeneralSecurityException e) {
+                        throw new IOException("Failed to decrypt file: " + filename, e);
                     }
                 }
+                String leafName = filePath.getFileName().toString();
+                return new NamedByteArrayResource(bytes, leafName);
             }
-            
+
+            // Fallback: legacy PHP-era category folders under legacyDir
+            Path legacyBase = Paths.get(legacyDir).normalize();
+            String[] legacyFolders = {"bookings", "evisa", "share_code", "flight", "hotel",
+                                      "insurance", "application", "appointment", "forms",
+                                      "client_documents"};
+            for (String folder : legacyFolders) {
+                Path legacyPath = legacyBase.resolve(folder).resolve(filename).normalize();
+                if (!legacyPath.startsWith(legacyBase)) continue;
+                Resource legacyResource = new UrlResource(legacyPath.toUri());
+                if (legacyResource.exists() && legacyResource.isReadable()) {
+                    log.info("Served legacy file from {}/{}", folder, filename);
+                    return legacyResource;
+                }
+            }
+
+            // Last-resort fallback: legacy client_documents with year/month sub-dirs
+            Path clientDocsBase = legacyBase.resolve("client_documents").normalize();
+            Path cdFilePath = clientDocsBase.resolve(filename).normalize();
+            if (cdFilePath.startsWith(clientDocsBase)) {
+                Resource cdResource = new UrlResource(cdFilePath.toUri());
+                if (cdResource.exists() && cdResource.isReadable()) {
+                    log.info("Served pre-consolidation file from client_documents/{}", filename);
+                    return cdResource;
+                }
+            }
+
             throw new ResourceNotFoundException("File not found: " + filename);
         } catch (MalformedURLException e) {
             throw new ResourceNotFoundException("File not found: " + filename);
+        } catch (IOException e) {
+            throw new ResourceNotFoundException("Could not read file: " + e.getMessage());
         }
     }
 
-    // Helpers
+    // --- Helpers ---
 
     private void validateFile(MultipartFile file) {
         if (file.getSize() > maxFileSize) {
@@ -222,52 +243,50 @@ public class FileUploadService {
         String uniqueFilename = recordId + "_" + System.currentTimeMillis() + "_"
                 + UUID.randomUUID().toString().substring(0, 8) + extension;
 
-        // Path structure: YYYY/MM/
         LocalDate now = LocalDate.now();
         String year = String.valueOf(now.getYear());
         String month = String.format("%02d", now.getMonthValue());
 
-        // Create directory: base/YYYY/MM
-        Path uploadDir = Paths.get(uploadBasePath, year, month);
+        Path uploadDir = Paths.get(uploadRoot, "locker", year, month);
         if (!Files.exists(uploadDir)) {
             Files.createDirectories(uploadDir);
         }
 
-        // Save file
         Path filePath = uploadDir.resolve(uniqueFilename);
-        Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
 
-        // Return relative path for DB: YYYY/MM/filename (always forward slashes)
+        if (encryptionUtil != null) {
+            try {
+                byte[] encrypted = encryptionUtil.encrypt(file.getInputStream().readAllBytes());
+                Files.write(filePath, encrypted);
+                log.info("Encrypted and saved file: {}", uniqueFilename);
+            } catch (java.security.GeneralSecurityException e) {
+                throw new IOException("Failed to encrypt file", e);
+            }
+        } else {
+            Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+        }
+
+        // Stored key is relative to uploadRoot/locker/ so the download path
+        // resolves correctly via: lockerBase.resolve("YYYY/MM/filename")
         return year + "/" + month + "/" + uniqueFilename;
     }
 
     private List<String> getExistingFiles(TravelerQuestions questions, String entityField) {
         String json = null;
         switch (entityField) {
-            case "evisaDocument":
-                json = questions.getEvisaDocument();
-                break;
-            case "shareCodeDocument":
-                json = questions.getShareCodeDocument();
-                break;
-            case "bookingDocument":
-                json = questions.getBookingDocument();
-                break;
-            case "passportFront":
-                json = questions.getPassportFront();
-                break;
-            case "passportBack":
-                json = questions.getPassportBack();
-                break;
+            case "evisaDocument":      json = questions.getEvisaDocument(); break;
+            case "shareCodeDocument":  json = questions.getShareCodeDocument(); break;
+            case "bookingDocument":    json = questions.getBookingDocument(); break;
+            case "passportFront":      json = questions.getPassportFront(); break;
+            case "passportBack":       json = questions.getPassportBack(); break;
+            case "schengenVisaImage":  json = questions.getSchengenVisaImage(); break;
         }
 
-        if (json == null || json.trim().isEmpty())
-            return new ArrayList<>();
+        if (json == null || json.trim().isEmpty()) return new ArrayList<>();
 
         try {
             if (json.startsWith("[")) {
-                return objectMapper.readValue(json, new TypeReference<List<String>>() {
-                });
+                return objectMapper.readValue(json, new TypeReference<List<String>>() {});
             } else {
                 return new ArrayList<>(Collections.singletonList(json));
             }
@@ -279,46 +298,15 @@ public class FileUploadService {
 
     private void updateQuestionField(TravelerQuestions questions, String entityField, List<String> files) {
         try {
-            String val;
-            if (files.isEmpty()) {
-                val = null;
-            } else if (files.size() == 1) {
-                // Should we save as JSON array strictly?
-                // Or allows single string for backward compat?
-                // LockerService reads both.
-                // Saving as JSON array is future proof.
-                // But if column length 255 is issue, single string is better.
-                // Let's try JSON. If length constraint hit, we have a problem.
-                // ["filename"] takes 4 extra chars.
-                val = objectMapper.writeValueAsString(files);
-            } else {
-                val = objectMapper.writeValueAsString(files);
-            }
-
-            // Check length?
-            if (val != null && val.length() > 255) {
-                log.warn("File list too long for column ({} > 255). Truncating or error?", val.length());
-                // Fallback: Store only last file?
-                // Or throw error?
-                // For now, let's proceed. DB will throw exception if too long.
-            }
+            String val = files.isEmpty() ? null : objectMapper.writeValueAsString(files);
 
             switch (entityField) {
-                case "evisaDocument":
-                    questions.setEvisaDocument(val);
-                    break;
-                case "shareCodeDocument":
-                    questions.setShareCodeDocument(val);
-                    break;
-                case "bookingDocument":
-                    questions.setBookingDocument(val);
-                    break;
-                case "passportFront":
-                    questions.setPassportFront(val);
-                    break;
-                case "passportBack":
-                    questions.setPassportBack(val);
-                    break;
+                case "evisaDocument":      questions.setEvisaDocument(val); break;
+                case "shareCodeDocument":  questions.setShareCodeDocument(val); break;
+                case "bookingDocument":    questions.setBookingDocument(val); break;
+                case "passportFront":      questions.setPassportFront(val); break;
+                case "passportBack":       questions.setPassportBack(val); break;
+                case "schengenVisaImage":  questions.setSchengenVisaImage(val); break;
             }
         } catch (Exception e) {
             log.error("Failed to update field", e);
@@ -330,9 +318,7 @@ public class FileUploadService {
         TravelerQuestions questions;
         Long recordId;
 
-        Long getId() {
-            return recordId;
-        }
+        Long getId() { return recordId; }
     }
 
     private RecordWrapper findRecordByToken(String token) {

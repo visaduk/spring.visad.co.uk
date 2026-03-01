@@ -28,7 +28,7 @@ public class VisaUrlService {
 
     private final VisaUrlRepository visaUrlRepository;
 
-    @Value("${app.upload.forms-dir}")
+    @Value("${app.upload.forms-dir:/home/VisaD/visad.co.uk/vault_uploads/forms}")
     private String formsDir;
 
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of("pdf", "doc", "docx");

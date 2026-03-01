@@ -1,6 +1,9 @@
 package uk.co.visad.controller;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -25,7 +28,7 @@ public class DocumentController {
             @RequestParam(value = "record_type", required = false) String recordType,
             @RequestParam(value = "type", required = false) String type,
             @RequestParam(value = "category", required = false) String category) {
-        
+
         Long finalId = (recordId != null) ? recordId : id;
         String finalType = (recordType != null) ? recordType : type;
 
@@ -39,17 +42,21 @@ public class DocumentController {
         } else {
             documents = documentService.getDocuments(finalId, finalType);
         }
-        
+
         return ResponseEntity.ok(ApiResponse.success(documents));
     }
 
     @PostMapping("/upload")
     public ResponseEntity<ApiResponse<Document>> upload(
             @RequestParam("file") MultipartFile file,
-            @RequestParam("record_id") Long recordId,
-            @RequestParam("record_type") String recordType,
+            @RequestParam(value = "record_id", required = false) Long recordId,
+            @RequestParam(value = "id", required = false) Long id,
+            @RequestParam(value = "record_type", required = false) String recordType,
+            @RequestParam(value = "type", required = false) String type,
             @RequestParam("category") String category) throws IOException {
-        Document document = documentService.upload(file, recordId, recordType, category);
+        Long finalId = (recordId != null) ? recordId : id;
+        String finalType = (recordType != null) ? recordType : type;
+        Document document = documentService.upload(file, finalId, finalType, category);
         return ResponseEntity.ok(ApiResponse.success(document, "File uploaded successfully"));
     }
 
@@ -57,5 +64,14 @@ public class DocumentController {
     public ResponseEntity<ApiResponse<Void>> delete(@RequestParam Long id) {
         documentService.delete(id);
         return ResponseEntity.ok(ApiResponse.successMessage("Document deleted successfully"));
+    }
+
+    @GetMapping("/{id}/download")
+    public ResponseEntity<Resource> download(@PathVariable Long id) {
+        DocumentService.DocumentDownload dl = documentService.getForDownload(id);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(dl.contentType()))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + dl.filename() + "\"")
+                .body(dl.resource());
     }
 }

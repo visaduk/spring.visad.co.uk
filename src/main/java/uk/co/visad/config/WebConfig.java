@@ -18,7 +18,7 @@ public class WebConfig implements WebMvcConfigurer {
     @Value("${app.cors.allowed-origin-patterns}")
     private String allowedOriginPatterns;
 
-    @Value("${app.upload.base-dir}")
+    @Value("${app.upload.root:/home/VisaD/visad.co.uk/vault_uploads}")
     private String uploadBaseDir;
 
     public WebConfig() {
